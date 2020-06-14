@@ -8,5 +8,5 @@
   "scripts": ["multilevel.js"],
   "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",
   "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/master/module.json",
-  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v0.0.1.zip"
+  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/master.zip"
 }
