@@ -1,0 +1,11 @@
+{
+  "name": "multilevel-tokens",
+  "title": "Multilevel Tokens",
+  "description": "Allows you to create linked regions. Tokens in the one region will also appear in the other region. Ideal for multi-level maps, for example to make tokens on a floor below visible from a balcony above.",
+  "author": "grandseiken",
+  "version": "0.0.1",
+  "minimumCoreVersion": "0.6.0",
+  "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",
+  "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/master/module.json",
+  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v0.0.1.zip"
+}
