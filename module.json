@@ -5,6 +5,7 @@
   "author": "grandseiken",
   "version": "0.0.1",
   "minimumCoreVersion": "0.6.0",
+  "scripts": ["multilevel.js"],
   "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",
   "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/master/module.json",
   "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v0.0.1.zip"
