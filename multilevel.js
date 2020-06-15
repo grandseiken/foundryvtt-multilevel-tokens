@@ -4,7 +4,10 @@ const MLT = {
   FLAG_SOURCE_RECT: "srect",
   FLAG_TARGET_RECT: "trect",
   SOURCE_TEXT_PREFIX: "@source:",
-  TARGET_TEXT_PREFIX: "@target:"
+  TARGET_TEXT_PREFIX: "@target:",
+  REPLICATED_UPDATE: "mlt_bypass",
+  // TODO: make configurable.
+  TINT_MULTIPLIER: [.5, .5, .5]
 };
 
 class MltRequestBatch {
@@ -16,13 +19,17 @@ class MltRequestBatch {
     this._scene(scene).create.push(data);
   }
 
+  updateToken(scene, data) {
+    this._scene(scene).update.push(data);
+  }
+
   deleteToken(scene, id) {
     this._scene(scene).delete.push(id);
   }
 
   _scene(scene) {
     if (!(scene._id in this._scenes)) {
-      this._scenes[scene._id] = {create: [], delete: []};
+      this._scenes[scene._id] = {create: [], update: [], delete: []};
     }
     return this._scenes[scene._id];
   }
@@ -38,6 +45,7 @@ class MultilevelTokens {
     Hooks.on("createToken", this._onCreateToken.bind(this));
     Hooks.on("preUpdateToken", this._onPreUpdateToken.bind(this));
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
+    Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
     this._asyncQueue = null;
     this._asyncCount = 0;
@@ -118,12 +126,17 @@ class MultilevelTokens {
                     (targetRect.height / targetScene.data.grid) / (sourceRect.height/ sourceScene.data.grid));
   }
 
-  _getReplicatedTokenData(token, sourceScene, sourceRect, targetScene, targetRect) {
+  _getReplicatedTokenCreateData(token, sourceScene, sourceRect, targetScene, targetRect) {
     const targetPosition =
         this._mapTokenPosition(token, sourceScene, sourceRect, targetScene, targetRect);
     const targetScaleFactor = this._getScaleFactor(sourceScene, sourceRect, targetScene, targetRect);
 
-    var data = duplicate(token);
+    const tintRgb = token.tint ? hexToRGB(colorStringToHex(token.tint)) : [1., 1., 1.];
+    for (let i = 0; i < MLT.TINT_MULTIPLIER.length; ++i) {
+      tintRgb[i] *= MLT.TINT_MULTIPLIER[i];
+    }
+
+    const data = duplicate(token);
     delete data._id;
     delete data.actorId;
     data.actorLink = false;
@@ -131,11 +144,19 @@ class MultilevelTokens {
     data.x = targetPosition.x;
     data.y = targetPosition.y;
     data.scale *= targetScaleFactor;
+    data.tint = "#" + rgbToHex(tintRgb).toString(16);
     data.flags = {};
     data.flags[MLT.FLAG_SCOPE] = {};
     data.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_TOKEN] = token._id;
     data.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_RECT] = sourceRect._id;
     data.flags[MLT.FLAG_SCOPE][MLT.FLAG_TARGET_RECT] = targetRect._id;
+    return data;
+  }
+
+  _getReplicatedTokenUpdateData(sourceToken, replicatedToken, sourceScene, sourceRect, targetScene, targetRect) {
+    const data = this._getReplicatedTokenCreateData(sourceToken, sourceScene, sourceRect, targetScene, targetRect);
+    data._id = replicatedToken._id;
+    delete data.flags;
     return data;
   }
 
@@ -159,6 +180,13 @@ class MultilevelTokens {
     return sourceScene.data.tokens
         .filter(token => this._isTokenInRect(token, sourceScene, sourceRect) &&
                          !this._isReplicatedToken(token));
+  }
+
+  _getSourceRectsForSourceToken(token) {
+    const sourceScene = this._sceneOfToken(token._id);
+    return sourceScene.data.drawings
+        .filter(drawing => this._isSourceRect(drawing) &&
+                           this._isTokenInRect(token, sourceScene, drawing));
   }
 
   _getReplicatedTokensForSourceToken(sourceToken, f) {
@@ -187,7 +215,21 @@ class MultilevelTokens {
 
     const targetScene = this._sceneOfDrawing(targetRect._id);
     requestBatch.createToken(targetScene,
-        this._getReplicatedTokenData(token, sourceScene, sourceRect, targetScene, targetRect));
+        this._getReplicatedTokenCreateData(token, sourceScene, sourceRect, targetScene, targetRect));
+  }
+
+  _updateReplicatedToken(requestBatch, sourceToken, replicatedToken, sourceRect, targetRect) {
+    const sourceScene = this._sceneOfDrawing(sourceRect._id);
+    const targetScene = this._sceneOfDrawing(targetRect._id);
+    if (this._sceneOfToken(sourceToken._id) !== sourceScene ||
+        this._sceneOfToken(replicatedToken._id) !== targetScene ||
+        this._isReplicatedToken(sourceToken) || !this._isReplicatedToken(replicatedToken) ||
+        !this._isTokenInRect(sourceToken, sourceScene, sourceRect)) {
+      return;
+    }
+
+    requestBatch.updateToken(targetScene,
+        this._getReplicatedTokenUpdateData(sourceToken, replicatedToken, sourceScene, sourceRect, targetScene, targetRect));
   }
 
   _replicateTokenToAllRects(requestBatch, token) {
@@ -195,12 +237,38 @@ class MultilevelTokens {
       return;
     }
 
-    const sourceScene = this._sceneOfToken(token._id);
-    sourceScene.data.drawings
-        .filter(drawing => this._isSourceRect(drawing) &&
-                           this._isTokenInRect(token, sourceScene, drawing))
+    this._getSourceRectsForSourceToken(token)
         .flatMap(this._getTargetRectsForSourceRect.bind(this))
         .forEach(([sourceRect, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
+  }
+
+  _updateAllReplicatedTokens(requestBatch, token) {
+    if (this._isReplicatedToken(token)) {
+      return;
+    }
+
+    const mappedRects =  this._getSourceRectsForSourceToken(token)
+        .flatMap(this._getTargetRectsForSourceRect.bind(this));
+
+    const tokensToDelete = [];
+    const tokensToUpdate = [];
+    this._getReplicatedTokensForSourceToken(token).forEach(([scene, replicatedToken]) => {
+      const mappedRect = mappedRects
+          .find(([sourceRect, targetRect]) => replicatedToken.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_RECT] === sourceRect._id &&
+                                              replicatedToken.flags[MLT.FLAG_SCOPE][MLT.FLAG_TARGET_RECT] === targetRect._id);
+
+      if (mappedRect) {
+        tokensToUpdate.push([mappedRect[0], mappedRect[1], replicatedToken]);
+      } else {
+        tokensToDelete.push([scene, replicatedToken]);
+      }
+    });
+    const tokensToCreate = mappedRects
+        .filter(([s0, t0]) => !tokensToUpdate.find(([s1, t1, _]) => s0._id === s1._id && t0._id === t1._id));
+
+    tokensToDelete.forEach(([scene, t]) => requestBatch.deleteToken(scene, t._id));
+    tokensToUpdate.forEach(([sourceRect, targetRect, t]) => this._updateReplicatedToken(requestBatch, token, t, sourceRect, targetRect));
+    tokensToCreate.forEach(([sourceRect, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
   }
 
   _replicateAllFromSourceRect(requestBatch, sourceRect) {
@@ -227,11 +295,18 @@ class MultilevelTokens {
   }
 
   _execute(requestBatch) {
-    var promise = Promise.resolve(null);
+    let promise = Promise.resolve(null);
     for (const [sceneId, data] of Object.entries(requestBatch._scenes)) {
       const scene = game.scenes.get(sceneId);
       if (scene && data.delete.length) {
-        promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, {isUndo: true}));
+        const options = {isUndo: true};
+        options[MLT.REPLICATED_UPDATE] = true;
+        promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
+      }
+      if (scene && data.update.length) {
+        const options = {isUndo: true, diff: true};
+        options[MLT.REPLICATED_UPDATE] = true;
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.update, options));
       }
       if (scene && data.create.length) {
         promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, {isUndo: true}));
@@ -260,14 +335,14 @@ class MultilevelTokens {
     if (this._isSourceRect(drawing)) {
       const d = duplicate(drawing);
       this._queueAsync(() => {
-        var requestBatch = new MltRequestBatch();
+        const requestBatch = new MltRequestBatch();
         this._replicateAllFromSourceRect(requestBatch, d);
         return this._execute(requestBatch);
       });
     } else if (this._isTargetRect(drawing)) {
       const d = duplicate(drawing);
       this._queueAsync(() => {
-        var requestBatch = new MltRequestBatch();
+        const requestBatch = new MltRequestBatch();
         this._replicateAllToTargetRect(requestBatch, d);
         return this._execute(requestBatch);
       });
@@ -287,7 +362,7 @@ class MultilevelTokens {
     if (this._isSourceRect(drawing) || this._isTargetRect(drawing)) {
       const d = duplicate(drawing);
       this._queueAsync(() => {
-        var requestBatch = new MltRequestBatch();
+        const requestBatch = new MltRequestBatch();
         this._removeReplicationsForRect(requestBatch, d);
         return this._execute(requestBatch);
       });
@@ -298,7 +373,7 @@ class MultilevelTokens {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(() => {
-        var requestBatch = new MltRequestBatch();
+        const requestBatch = new MltRequestBatch();
         this._replicateTokenToAllRects(requestBatch, t);
         return this._execute(requestBatch);
       });
@@ -306,26 +381,29 @@ class MultilevelTokens {
   }
 
   _onPreUpdateToken(scene, token, update, options, userId) {
-    return !this._isReplicatedToken(token);
+    return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
   }
 
   _onUpdateToken(scene, token, update, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(() => {
-        var requestBatch = new MltRequestBatch();
-        this._removeReplicationsForSourceToken(requestBatch, t);
-        this._replicateTokenToAllRects(requestBatch, t);
+        const requestBatch = new MltRequestBatch();
+        this._updateAllReplicatedTokens(requestBatch, t);
         return this._execute(requestBatch);
       });
     }
+  }
+
+  _onPreDeleteToken(scene, token, options, userId) {
+    return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
   }
 
   _onDeleteToken(scene, token, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(() => {
-        var requestBatch = new MltRequestBatch();
+        const requestBatch = new MltRequestBatch();
         this._removeReplicationsForSourceToken(requestBatch, t);
         return this._execute(requestBatch);
       });
