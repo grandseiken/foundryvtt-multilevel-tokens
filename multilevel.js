@@ -1,10 +1,11 @@
-const FLAG_SCOPE = "multilevel-tokens";
-const FLAG_SOURCE_TOKEN = "stoken";
-const FLAG_SOURCE_RECT = "srect";
-const FLAG_TARGET_RECT = "trect";
-function log(message) {
-  console.log("Multilevel Tokens | " + message)
-}
+const MLT = {
+  FLAG_SCOPE: "multilevel-tokens",
+  FLAG_SOURCE_TOKEN: "stoken",
+  FLAG_SOURCE_RECT: "srect",
+  FLAG_TARGET_RECT: "trect",
+  SOURCE_TEXT_PREFIX: "@source:",
+  TARGET_TEXT_PREFIX: "@target:"
+};
 
 class MultilevelTokens {
   constructor() {
@@ -16,9 +17,11 @@ class MultilevelTokens {
     Hooks.on("preUpdateToken", this._onPreUpdateToken.bind(this));
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
+    MultilevelTokens.log("Initialized");
+  }
 
-    this.regions = {};
-    log("Initialized");
+  static log(message) {
+    console.log("Multilevel Tokens | " + message)
   }
 
   _onReady() {
@@ -86,9 +89,14 @@ class MultilevelTokens {
     console.log(userId);
   }
 
+  _isUserGamemaster(userId) {
+    const user = game.users.get(userId);
+    return user ? user.role === CONST.USER_ROLES.GAMEMASTER : false;
+  }
+
   _isGamemaster() {
     // TODO: is the _first_ gamemaster?
-    return game.user.role === CONST.USER_ROLES.GAMEMASTER;
+    return this._isUserGamemaster(game.userId);
   }
 
   _sceneOfDrawing(drawingId) {
@@ -96,8 +104,32 @@ class MultilevelTokens {
   }
 
   _sceneOfToken(tokenId) {
-    // TODO: so far unused.
     return game.scenes.find(s => s.data.tokens.find(e => e._id === tokenId));
+  }
+
+  _isSourceRect(drawing) {
+    return this._isUserGamemaster(drawing.author) &&
+        drawing.type === CONST.DRAWING_TYPES.RECTANGLE &&
+        drawing.text.startsWith(MLT.SOURCE_TEXT_PREFIX);
+  }
+
+  _isTargetRect(drawing) {
+    return this._isUserGamemaster(drawing.author) &&
+        drawing.type === CONST.DRAWING_TYPES.RECTANGLE &&
+        drawing.text.startsWith(MLT.TARGET_TEXT_PREFIX);
+  }
+
+  _getSourceRectId(drawing) {
+    return drawing.text.substring(MLT.SOURCE_TEXT_PREFIX.length);
+  }
+
+  _getTargetRectId(drawing) {
+    return drawing.text.substring(MLT.TARGET_TEXT_PREFIX.length);
+  }
+
+  _isReplicatedToken(token) {
+    return (MLT.FLAG_SCOPE in token.flags) &&
+        (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.FLAG_SCOPE]);
   }
 
   _isTokenInRect(token, sourceScene, sourceRect) {
@@ -120,14 +152,72 @@ class MultilevelTokens {
     };
   }
 
-  _replicate(token, sourceRect, targetRect) {
+  _forEachTargetRectForSourceRect(sourceRect, f) {
+    const id = this._getSourceRectId(sourceRect);
+    game.scenes.forEach(scene => {
+      scene.data.drawings.forEach(drawing => {
+        if (this._isTargetRect(drawing) && this._getTargetRectId(drawing) === id) {
+          f(drawing);
+        }
+      });
+    });
+  }
+
+  _forEachSourceRectForTargetRect(targetRect, f) {
+    const id = this._getTargetRectId(targetRect);
+    game.scenes.forEach(scene => {
+      scene.data.drawings.forEach(drawing => {
+        if (this._isSourceRect(drawing) && this._getSourceRectId(drawing) === id) {
+          f(drawing);
+        }
+      });
+    });
+  }
+
+  _forEachReplicatedTokenForSourceToken(sourceToken, f) {
+    game.scenes.forEach(scene => {
+      scene.data.tokens.forEach(token => {
+        if (this._isReplicatedToken(token) &&
+            token.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_TOKEN] === sourceToken._id) {
+          f(scene, token);
+        }
+      });
+    });
+  }
+
+  _forEachReplicatedTokenForSourceRect(sourceRect, f) {
+    game.scenes.forEach(scene => {
+      scene.data.tokens.forEach(token => {
+        if (this._isReplicatedToken(token) &&
+            token.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_RECT] === sourceRect._id) {
+          f(scene, token);
+        }
+      });
+    });
+  }
+
+  _forEachReplicatedTokenForTargetRect(targetRect, f) {
+    const targetScene = this._sceneOfDrawing(targetRect);
+    targetScene.data.tokens.forEach(token => {
+      if (this._isReplicatedToken(token) &&
+          token.flags[MLT.FLAG_SCOPE][MLT.FLAG_TARGET_RECT] === targetRect._id) {
+        f(targetScene, token);
+      }
+    });
+  }
+
+  _deleteToken(scene, token) {
+    new Token({_id: token._id}, scene).delete();
+  }
+
+  _replicateTokenFromRectToRect(token, sourceRect, targetRect) {
     if (!this._isGamemaster()) {
       return;
     }
 
     const sourceScene = this._sceneOfDrawing(sourceRect._id);
     if (this._sceneOfToken(token._id) !== sourceScene ||
-        !this._isTokenInRect(token, sourceScene, sourceRect)) {
+        this._isReplicatedToken(token) || !this._isTokenInRect(token, sourceScene, sourceRect)) {
       return;
     }
 
@@ -136,22 +226,39 @@ class MultilevelTokens {
         this._mapTokenPosition(token, sourceScene, sourceRect, targetScene, targetRect);
 
     var data = duplicate(token);
+    delete data._id;
     delete data.actorId;
     data.actorLink = false;
     data.vision = false;
     data.x = targetPosition.x;
     data.y = targetPosition.y;
+    // TODO: scale?
     data.flags = {};
-    data.flags[FLAG_SCOPE] = {
-      FLAG_SOURCE_TOKEN: token._id,
-      FLAG_SOURCE_RECT: sourceRect._id,
-      FLAG_TARGET_RECT: targetRect._id
-    };
+    data.flags[MLT.FLAG_SCOPE] = {};
+    data.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_TOKEN] = token._id;
+    data.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_RECT] = sourceRect._id;
+    data.flags[MLT.FLAG_SCOPE][MLT.FLAG_TARGET_RECT] = targetRect._id;
 
-    Token.create(data, targetScene);
+    targetScene.createEmbeddedEntity(Token.embeddedName, data);
   }
 
-  _replicateAll(sourceRect, targetRect) {
+  _replicateTokenToAllRects(token) {
+    if (!this._isGamemaster()) {
+      return;
+    }
+
+    const sourceScene = this._sceneOfToken(token._id);
+    sourceScene.data.drawings.forEach(sourceRect => {
+      if (this._isSourceRect(sourceRect) &&
+          this._isTokenInRect(token, sourceScene, sourceRect)) {
+        this._forEachTargetRectForSourceRect(sourceRect, targetRect => {
+          this._replicateTokenFromRectToRect(token, sourceRect, targetRect);
+        });
+      }
+    });
+  }
+
+  _replicateAllFromRectToRect(sourceRect, targetRect) {
     if (!this._isGamemaster()) {
       return;
     }
@@ -159,17 +266,32 @@ class MultilevelTokens {
     const sourceScene = this._sceneOfDrawing(sourceRect._id);
     sourceScene.data.tokens.forEach(token => {
       if (this._isTokenInRect(token, sourceScene, sourceRect)) {
-        this._replicate(token, sourceRect, targetRect);
+        this._replicateTokenFromRectToRect(token, sourceRect, targetRect);
       }
     });
   }
 
-  _removeReplications(targetRect) {
+  _removeReplicationsForSourceToken(token) {
     if (!this._isGamemaster()) {
       return;
     }
+    this._forEachReplicatedTokenForSourceToken(token, this._deleteToken);
+  }
+
+  _removeReplicationsForSourceRect(sourceRect) {
+    if (!this._isGamemaster()) {
+      return;
+    }
+    this._forEachReplicatedTokenForSourceRect(sourceRect, this._deleteToken);
+  }
+
+  _removeReplicationsForTargetRect(targetRect) {
+    if (!this._isGamemaster()) {
+      return;
+    }
+    this._forEachReplicatedTokenForTargetRect(targetRect, this._deleteToken);
   }
 }
 
-log("Loaded");
+MultilevelTokens.log("Loaded");
 Hooks.on('init', () => game.multilevel = new MultilevelTokens())
