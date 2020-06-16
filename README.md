@@ -6,9 +6,9 @@ After marking out _source_ and _target_ regions, any tokens present in each sour
 
 ![Demo animation](demo/0.gif)
 
-For example, a source region is a part of a lower floor, and its target region is the corresponding empty space on the upper floor beside a balcony of some sort, players can "see" what's happening on floors below, since the target region acts as a view into the floor beneath.
+For example, if a source region is a part of a lower floor, and its target region is the corresponding empty space on the upper floor beside a balcony of some sort, players can "see" what's happening on the floor below.
 
-You could probably also use this functionality for other interesting things, like crystal balls, minimaps, or whatever else.
+You could probably also use this functionality for other interesting things, like crystal balls, or who knows.
 
 As a bonus, since multi-level maps often need a way to travel between the floors, this module also supports simple teleports using a similar mechanism.
 
