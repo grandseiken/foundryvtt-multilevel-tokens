@@ -22,8 +22,8 @@ Remember to enable the module in `Manage Modules` menu after installation.
 
 ## Creating cloned regions
 
-1. Use the rectangle drawing tool to create your source and target regions. You probably want to set them to hidden so that your players can't see them.
-2. Set the text labels on the regions (accessible via double right-click menu) to _exactly_ `@source:XXX` and `@target:XXX`, respectively, where `XXX` is some common identifier.
+1. Use the rectangle, ellipse or polygon drawing tool to create your source and target regions. You probably want to set them to hidden so that your players can't see them.
+2. Set the text labels on the drawings (accessible via double right-click menu) to _exactly_ `@source:XXX` and `@target:XXX`, respectively, where `XXX` is some common identifier.
 3. That's it! Tokens in the source region will be mirrored in target regions with the matching identifier.
 
 ### Notes
@@ -31,8 +31,9 @@ Remember to enable the module in `Manage Modules` menu after installation.
 * You can have more than one target region with the same identifier: tokens in the source region(s) get mirrored to all of them.
 * You can have more than one source region with the same identifier: tokens from all of them get mirrored to the targets.
 * Source and target regions can be on the same scene or different.
-* If the source and target regions are different sizes, the mirrored copies will get scaled up or down to fit. You probably want the aspect ratios to match though.
-* For small regions, you may need to reduce the label font size to allow resizing the rectangle. Or, you can add the label after the size is right.
+* You can use the polygon tool to make more complex region shapes. You move and rotate them freely without messing anything up.
+* If the source and target regions are different sizes, the mirrored copies will get scaled up or down to fit. You probably want the aspect ratios to match though. It's best to start by making two copies of the same drawing.
+* For small regions, you may need to reduce the label font size to allow resizing the drawing. Or, you can add the label after the size is right.
 
 ![Example image](demo/1.gif)
 
@@ -41,7 +42,7 @@ Remember to enable the module in `Manage Modules` menu after installation.
 
 ## Creating teleports
 
-Teleports work with marked regions just like the cloning system. The only difference is you need to label rectangles with `@in:XXX` for a teleport starting area, `@out:XXX` for a destination area, or `@inout:XXX` for a two-way area.
+Teleports work with marked regions just like the cloning system. The only difference is you need to label drawings with `@in:XXX` for a teleport starting area, `@out:XXX` for a destination area, or `@inout:XXX` for a two-way area.
 
 Any token that moves into an `@in` or `@inout` region will be moved to the corresponding
 `@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene.
@@ -50,14 +51,14 @@ Any token that moves into an `@in` or `@inout` region will be moved to the corre
 
 ## Troubleshooting
 
-* Only rectangle drawings can be made into linked regions, and their rotation value is
-ignored. They also need to have been _created_ by a user with the `GAMEMASTER` role in order to function as linked regions.
+* Drawings need to have been _created_ by a user with the `GAMEMASTER` role in order to function as linked regions.
 * The module needs a Gamemaster logged in to function properly, since it works by tracking changes on the GM's client and issuing commands with GM permissions in the background to manipulate tokens. If tokens get out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens.
 
 # Version history
 
 * **0.2.0**:
   * Added support for ellipse and polygon regions.
+  * Rotation of drawings is now taken into account.
   * Fixed that a cloned token could be copy-pasted, resulting in a temporary stuck token.
 * **0.1.0**:
   * First version.
