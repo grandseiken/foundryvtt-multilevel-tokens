@@ -34,10 +34,10 @@ Remember to enable the module in `Manage Modules` menu after installation.
 ![Example image](demo/1.gif)
 
 * If you want bidirectional syncing of tokens, you need to create two pairs of linked regions with different identifiers (both a source and a target in each place).
-* Cloned tokens can't be moved or deleted independently. They don't have a linked actor, aren't controlled by a player, and don't have vision. They have an extra tint applied to make them easily distinguishable, which can be changed in the `Module Settings` menu.
+* Cloned tokens can't be moved or deleted independently. They don't have a linked actor, aren't controlled by a player, and don't have vision. They have an extra tint applied to make them easily distinguishable, which can be changed in the `Module Settings` menu. They inherit most other properties (hidden, size, name, disposition, etc) from the original token.
 
 ## Troubleshooting
 
 * Only rectangle drawings can be made into linked regions, and their rotation value is
 ignored. They also need to have been _created_ by a user with the `GAMEMASTER` role in order to function as linked regions.
-* The module needs a Gamemaster logged in to function properly, since it works by tracking changes on the Gamemaster's client and issuing commands in the background to manipulate tokens. If tokens get out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens.
+* The module needs a Gamemaster logged in to function properly, since it works by tracking changes on the GM's client and issuing commands with GM permissions in the background to manipulate tokens. If tokens get out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens.

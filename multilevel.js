@@ -46,6 +46,7 @@ class MultilevelTokens {
       default: MLT.DEFAULT_TINT_COLOR,
       onChange: this.refreshAll.bind(this),
     });
+    Hooks.on("ready", this._onReady.bind(this));
     Hooks.on("createDrawing", this._onCreateDrawing.bind(this));
     Hooks.on("preUpdateDrawing", this._onPreUpdateDrawing.bind(this));
     Hooks.on("updateDrawing", this._onUpdateDrawing.bind(this));
@@ -69,9 +70,23 @@ class MultilevelTokens {
     return user ? user.role === CONST.USER_ROLES.GAMEMASTER : false;
   }
 
-  _isGamemaster() {
-    // TODO: is the _first_ gamemaster?
-    return this._isUserGamemaster(game.userId);
+  _getActiveGamemasters() {
+    return game.users
+        .filter(user => user.active && user.role === CONST.USER_ROLES.GAMEMASTER)
+        .map(user => user._id)
+        .sort();
+  }
+
+  _isOnlyGamemaster() {
+    const activeGamemasters = this._getActiveGamemasters();
+    return activeGamemasters.length === 1 && activeGamemasters[0] === game.user._id;
+  }
+
+  _isPrimaryGamemaster() {
+    // To ensure commands are only issued once, return true only if we are the
+    // _first_ active GM.
+    const activeGamemasters = this._getActiveGamemasters();
+    return activeGamemasters.length > 0 && activeGamemasters[0] === game.user._id;
   }
 
   _sceneOfDrawing(drawingId) {
@@ -327,7 +342,7 @@ class MultilevelTokens {
   // To work around this, we use a batching system to minimize the number of requests we need to make, and queue
   // up requests if there's already some in progress.
   _queueAsync(f) {
-    if (!this._isGamemaster()) {
+    if (!this._isPrimaryGamemaster()) {
       return;
     }
     const batched = () => {
@@ -348,6 +363,7 @@ class MultilevelTokens {
   }
 
   refreshAll() {
+    MultilevelTokens.log("Refreshing all");
     this._queueAsync(requestBatch => {
       game.scenes.forEach(scene => {
         scene.data.tokens
@@ -358,6 +374,13 @@ class MultilevelTokens {
             .forEach(r => this._replicateAllFromSourceRect(requestBatch, r));
       });
     });
+  }
+
+  _onReady() {
+    // Replications might be out of sync if there was previously no GM and we just logged in.
+    if (this._isOnlyGamemaster()) {
+      this.refreshAll();
+    }
   }
 
   _onCreateDrawing(scene, drawing, options, userId) {
