@@ -45,7 +45,7 @@ Remember to enable the module in `Manage Modules` menu after installation.
 Teleports work with marked regions just like the cloning system. The only difference is you need to label drawings with `@in:XXX` for a teleport starting area, `@out:XXX` for a destination area, or `@inout:XXX` for a two-way area.
 
 Any token that moves into an `@in` or `@inout` region will be moved to the corresponding
-`@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene.
+`@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene. (Non-GM owners of the token will get pulled if the token teleports to another scene.)
 
 ![Example animation](demo/2.gif)
 
@@ -59,6 +59,8 @@ Any token that moves into an `@in` or `@inout` region will be moved to the corre
 * **0.2.0**:
   * Added support for ellipse and polygon regions.
   * Rotation of drawings is now taken into account.
+  * Fixed that entities were referred to by ID rather than GUID. This could result in incorrect behaviour after duplicating a scene.
   * Fixed that a cloned token could be copy-pasted, resulting in a temporary stuck token.
+  * Fixed an error that could occur when a rectangle had no `text` property.
 * **0.1.0**:
   * First version.

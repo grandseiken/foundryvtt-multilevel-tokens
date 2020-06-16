@@ -130,8 +130,8 @@ class MultilevelTokens {
             drawing.type == CONST.DRAWING_TYPES.POLYGON) &&
         this._isUserGamemaster(drawing.author) &&
         (tags.constructor === Array
-            ? tags.some(t => drawing.text.startsWith(t))
-            : drawing.text.startsWith(tags));
+            ? tags.some(t => drawing.text && drawing.text.startsWith(t))
+            : drawing.text && drawing.text.startsWith(tags));
   }
 
   _getRegionTag(drawing, tag) {
@@ -139,8 +139,7 @@ class MultilevelTokens {
   }
 
   _isReplicatedToken(token) {
-    return (MLT.SCOPE in token.flags) &&
-        (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
+    return token.flags && (MLT.SCOPE in token.flags) && (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
   }
 
   _isTokenInRegion(token, scene, region) {
@@ -241,7 +240,7 @@ class MultilevelTokens {
     data.vision = false;
     data.x = targetPosition.x;
     data.y = targetPosition.y;
-    data.scale *= targetScaleFactor;
+    data.scale = data.scale ? data.scale * targetScaleFactor : targetScaleFactor;
     data.rotation += targetRegion.rotation - sourceRegion.rotation;
     data.tint = "#" + rgbToHex(tintRgb).toString(16);
     data.flags = {};
