@@ -1,13 +1,13 @@
 const MLT = {
-  FLAG_SCOPE: "multilevel-tokens",
+  SCOPE: "multilevel-tokens",
+  SETTING_TINT_COLOR: "tintcolor",
+  DEFAULT_TINT_COLOR: "#808080",
+  SOURCE_TEXT_PREFIX: "@source:",
+  TARGET_TEXT_PREFIX: "@target:",
   FLAG_SOURCE_TOKEN: "stoken",
   FLAG_SOURCE_RECT: "srect",
   FLAG_TARGET_RECT: "trect",
-  SOURCE_TEXT_PREFIX: "@source:",
-  TARGET_TEXT_PREFIX: "@target:",
   REPLICATED_UPDATE: "mlt_bypass",
-  // TODO: make configurable.
-  TINT_MULTIPLIER: [.5, .5, .5]
 };
 
 class MltRequestBatch {
@@ -37,7 +37,15 @@ class MltRequestBatch {
 
 class MultilevelTokens {
   constructor() {
-    Hooks.on("ready", this._onReady.bind(this));
+    game.settings.register(MLT.SCOPE, MLT.SETTING_TINT_COLOR, {
+      name: "Tint color for cloned tokens",
+      hint: "Extra tint color applied to cloned tokens in target regions. Should be a hex color code.",
+      scope: "world",
+      config: true,
+      type: String,
+      default: MLT.DEFAULT_TINT_COLOR,
+      onChange: this.refreshAll.bind(this),
+    });
     Hooks.on("createDrawing", this._onCreateDrawing.bind(this));
     Hooks.on("preUpdateDrawing", this._onPreUpdateDrawing.bind(this));
     Hooks.on("updateDrawing", this._onUpdateDrawing.bind(this));
@@ -55,8 +63,6 @@ class MultilevelTokens {
   static log(message) {
     console.log("Multilevel Tokens | " + message)
   }
-
-  _onReady() {}
 
   _isUserGamemaster(userId) {
     const user = game.users.get(userId);
@@ -97,15 +103,15 @@ class MultilevelTokens {
   }
 
   _isReplicatedToken(token) {
-    return (MLT.FLAG_SCOPE in token.flags) &&
-        (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.FLAG_SCOPE]);
+    return (MLT.SCOPE in token.flags) &&
+        (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
   }
 
   _isTokenInRect(token, sourceScene, sourceRect) {
     const tokenX = token.x + token.width * sourceScene.data.grid / 2;
     const tokenY = token.y + token.height * sourceScene.data.grid / 2;
-    return tokenX >= sourceRect.x && tokenX < sourceRect.x + sourceRect.width &&
-           tokenY >= sourceRect.y && tokenY < sourceRect.y + sourceRect.height;
+    return tokenX >= sourceRect.x && tokenX <= sourceRect.x + sourceRect.width &&
+           tokenY >= sourceRect.y && tokenY <= sourceRect.y + sourceRect.height;
   }
 
   _mapTokenPosition(token, sourceScene, sourceRect, targetScene, targetRect) {
@@ -132,8 +138,10 @@ class MultilevelTokens {
     const targetScaleFactor = this._getScaleFactor(sourceScene, sourceRect, targetScene, targetRect);
 
     const tintRgb = token.tint ? hexToRGB(colorStringToHex(token.tint)) : [1., 1., 1.];
-    for (let i = 0; i < MLT.TINT_MULTIPLIER.length; ++i) {
-      tintRgb[i] *= MLT.TINT_MULTIPLIER[i];
+    const multRgb = hexToRGB(colorStringToHex(
+        game.settings.get(MLT.SCOPE, MLT.SETTING_TINT_COLOR) || MLT.DEFAULT_TINT_COLOR));
+    for (let i = 0; i < multRgb.length; ++i) {
+      tintRgb[i] *= multRgb[i];
     }
 
     const data = duplicate(token);
@@ -146,10 +154,10 @@ class MultilevelTokens {
     data.scale *= targetScaleFactor;
     data.tint = "#" + rgbToHex(tintRgb).toString(16);
     data.flags = {};
-    data.flags[MLT.FLAG_SCOPE] = {};
-    data.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_TOKEN] = token._id;
-    data.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_RECT] = sourceRect._id;
-    data.flags[MLT.FLAG_SCOPE][MLT.FLAG_TARGET_RECT] = targetRect._id;
+    data.flags[MLT.SCOPE] = {};
+    data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] = token._id;
+    data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] = sourceRect._id;
+    data.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] = targetRect._id;
     return data;
   }
 
@@ -192,7 +200,7 @@ class MultilevelTokens {
   _getReplicatedTokensForSourceToken(sourceToken, f) {
     return game.scenes.map(scene => scene.data.tokens
         .filter(token => this._isReplicatedToken(token) &&
-                         token.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_TOKEN] === sourceToken._id)
+                         token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === sourceToken._id)
         .map(token => [scene, token])
     ).flat();
   }
@@ -200,8 +208,8 @@ class MultilevelTokens {
   _getReplicatedTokensForRect(rect, f) {
     return game.scenes.map(scene => scene.data.tokens
         .filter(token => this._isReplicatedToken(token) &&
-                         (token.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_RECT] === rect._id ||
-                          token.flags[MLT.FLAG_SCOPE][MLT.FLAG_TARGET_RECT] === rect._id))
+                         (token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] === rect._id ||
+                          token.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] === rect._id))
         .map(token => [scene, token])
     ).flat();
   }
@@ -254,8 +262,8 @@ class MultilevelTokens {
     const tokensToUpdate = [];
     this._getReplicatedTokensForSourceToken(token).forEach(([scene, replicatedToken]) => {
       const mappedRect = mappedRects
-          .find(([sourceRect, targetRect]) => replicatedToken.flags[MLT.FLAG_SCOPE][MLT.FLAG_SOURCE_RECT] === sourceRect._id &&
-                                              replicatedToken.flags[MLT.FLAG_SCOPE][MLT.FLAG_TARGET_RECT] === targetRect._id);
+          .find(([sourceRect, targetRect]) => replicatedToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] === sourceRect._id &&
+                                              replicatedToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] === targetRect._id);
 
       if (mappedRect) {
         tokensToUpdate.push([mappedRect[0], mappedRect[1], replicatedToken]);
@@ -315,37 +323,50 @@ class MultilevelTokens {
     return promise;
   }
 
+  // Executing multiple server requests concurrently seems to often result in requests being dropped or ignored.
+  // To work around this, we use a batching system to minimize the number of requests we need to make, and queue
+  // up requests if there's already some in progress.
   _queueAsync(f) {
     if (!this._isGamemaster()) {
       return;
     }
+    const batched = () => {
+      const requestBatch = new MltRequestBatch();
+      f(requestBatch);
+      return this._execute(requestBatch);
+    };
     const done = () => {
       if (--this._asyncCount === 0) {
         this._asyncQueue = null;
       }
     };
     if (this._asyncCount++ === 0) {
-      this._asyncQueue = f().then(done);
+      this._asyncQueue = batched().then(done);
     } else {
-      this._asyncQueue = this._asyncQueue.then(f).then(done);
+      this._asyncQueue = this._asyncQueue.then(batched).then(done);
     }
+  }
+
+  refreshAll() {
+    this._queueAsync(requestBatch => {
+      game.scenes.forEach(scene => {
+        scene.data.tokens
+            .filter(this._isReplicatedToken.bind(this))
+            .forEach(t => requestBatch.deleteToken(scene, t._id));
+        scene.data.drawings
+            .filter(this._isSourceRect.bind(this))
+            .forEach(r => this._replicateAllFromSourceRect(requestBatch, r));
+      });
+    });
   }
 
   _onCreateDrawing(scene, drawing, options, userId) {
     if (this._isSourceRect(drawing)) {
       const d = duplicate(drawing);
-      this._queueAsync(() => {
-        const requestBatch = new MltRequestBatch();
-        this._replicateAllFromSourceRect(requestBatch, d);
-        return this._execute(requestBatch);
-      });
+      this._queueAsync(requestBatch => this._replicateAllFromSourceRect(requestBatch, d));
     } else if (this._isTargetRect(drawing)) {
       const d = duplicate(drawing);
-      this._queueAsync(() => {
-        const requestBatch = new MltRequestBatch();
-        this._replicateAllToTargetRect(requestBatch, d);
-        return this._execute(requestBatch);
-      });
+      this._queueAsync(requestBatch => this._replicateAllToTargetRect(requestBatch, d));
     }
   }
 
@@ -361,22 +382,14 @@ class MultilevelTokens {
   _onDeleteDrawing(scene, drawing, options, userId) {
     if (this._isSourceRect(drawing) || this._isTargetRect(drawing)) {
       const d = duplicate(drawing);
-      this._queueAsync(() => {
-        const requestBatch = new MltRequestBatch();
-        this._removeReplicationsForRect(requestBatch, d);
-        return this._execute(requestBatch);
-      });
+      this._queueAsync(requestBatch => this._removeReplicationsForRect(requestBatch, d));
     }
   }
 
   _onCreateToken(scene, token, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(() => {
-        const requestBatch = new MltRequestBatch();
-        this._replicateTokenToAllRects(requestBatch, t);
-        return this._execute(requestBatch);
-      });
+      this._queueAsync(requestBatch => this._replicateTokenToAllRects(requestBatch, t));
     }
   }
 
@@ -387,11 +400,7 @@ class MultilevelTokens {
   _onUpdateToken(scene, token, update, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(() => {
-        const requestBatch = new MltRequestBatch();
-        this._updateAllReplicatedTokens(requestBatch, t);
-        return this._execute(requestBatch);
-      });
+      this._queueAsync(requestBatch => this._updateAllReplicatedTokens(requestBatch, t));
     }
   }
 
@@ -402,11 +411,7 @@ class MultilevelTokens {
   _onDeleteToken(scene, token, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(() => {
-        const requestBatch = new MltRequestBatch();
-        this._removeReplicationsForSourceToken(requestBatch, t);
-        return this._execute(requestBatch);
-      });
+      this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, t));
     }
   }
 }
