@@ -75,6 +75,12 @@ class MultilevelTokens {
     console.log("Multilevel Tokens | " + message)
   }
 
+  _rotate(cx, cy, x, y, degrees) {
+    const r = degrees * Math.PI / 180;
+    return [cx + (x - cx) * Math.cos(r) - (y - cy) * Math.sin(r),
+            cy + (x - cx) * Math.sin(r) + (y - cy) * Math.cos(r)];
+  }
+
   _isUserGamemaster(userId) {
     const user = game.users.get(userId);
     return user ? user.role === CONST.USER_ROLES.GAMEMASTER : false;
@@ -138,8 +144,14 @@ class MultilevelTokens {
   }
 
   _isTokenInRegion(token, scene, region) {
-    const tokenX = token.x + token.width * scene.data.grid / 2;
-    const tokenY = token.y + token.height * scene.data.grid / 2;
+    let tokenX = token.x + token.width * scene.data.grid / 2;
+    let tokenY = token.y + token.height * scene.data.grid / 2;
+    if (region.rotation) {
+      const r = this._rotate(region.x + region.width / 2, region.y + region.height / 2,
+                             tokenX, tokenY, -region.rotation);
+      tokenX = r[0];
+      tokenY = r[1];
+    }
 
     const inBox = tokenX >= region.x && tokenX <= region.x + region.width &&
                   tokenY >= region.y && tokenY <= region.y + region.height;
@@ -180,12 +192,25 @@ class MultilevelTokens {
   }
 
   _mapTokenPosition(token, sourceScene, sourceRegion, targetScene, targetRegion) {
-    const tokenX = token.x + token.width * sourceScene.data.grid / 2;
-    const tokenY = token.y + token.height * sourceScene.data.grid / 2;
-    const targetX = targetRegion.x +
+    let tokenX = token.x + token.width * sourceScene.data.grid / 2;
+    let tokenY = token.y + token.height * sourceScene.data.grid / 2;
+    if (sourceRegion.rotation) {
+      const r = this._rotate(sourceRegion.x + sourceRegion.width / 2, sourceRegion.y + sourceRegion.height / 2,
+                             tokenX, tokenY, -sourceRegion.rotation);
+      tokenX = r[0];
+      tokenY = r[1];
+    }
+
+    let targetX = targetRegion.x +
         (tokenX - sourceRegion.x) * (targetRegion.width / sourceRegion.width);
-    const targetY = targetRegion.y +
+    let targetY = targetRegion.y +
         (tokenY - sourceRegion.y) * (targetRegion.height / sourceRegion.height);
+    if (targetRegion.rotation) {
+      const r = this._rotate(targetRegion.x + targetRegion.width / 2, targetRegion.y + targetRegion.height / 2,
+                             targetX, targetY, targetRegion.rotation);
+      targetX = r[0];
+      targetY = r[1];
+    }
     return {
       x: targetX - token.width * targetScene.data.grid / 2,
       y: targetY - token.height * targetScene.data.grid / 2
@@ -217,6 +242,7 @@ class MultilevelTokens {
     data.x = targetPosition.x;
     data.y = targetPosition.y;
     data.scale *= targetScaleFactor;
+    data.rotation += targetRegion.rotation - sourceRegion.rotation;
     data.tint = "#" + rgbToHex(tintRgb).toString(16);
     data.flags = {};
     data.flags[MLT.SCOPE] = {};
