@@ -119,7 +119,9 @@ class MultilevelTokens {
   }
 
   _isTaggedRegion(drawing, tags) {
-    return (drawing.type == CONST.DRAWING_TYPES.RECTANGLE || drawing.type == CONST.DRAWING_TYPES.ELLIPSE) &&
+    return (drawing.type == CONST.DRAWING_TYPES.RECTANGLE ||
+            drawing.type == CONST.DRAWING_TYPES.ELLIPSE ||
+            drawing.type == CONST.DRAWING_TYPES.POLYGON) &&
         this._isUserGamemaster(drawing.author) &&
         (tags.constructor === Array
             ? tags.some(t => drawing.text.startsWith(t))
@@ -154,6 +156,25 @@ class MultilevelTokens {
       const dx = region.x + region.width / 2 - tokenX;
       const dy = region.y + region.height / 2 - tokenY;
       return 4 * (dx * dx) / (region.width * region.width) + 4 * (dy * dy) / (region.height * region.height) <= 1;
+    }
+    if (region.type == CONST.DRAWING_TYPES.POLYGON) {
+      const cx = tokenX - region.x;
+      const cy = tokenY - region.y;
+      let w = 0;
+      for (let i0 = 0; i0 < region.points.length; ++i0) {
+        let i1 = i0 + 1 == region.points.length ? 0 : i0 + 1;
+        if (region.points[i0][1] <= cy && region.points[i1][1] > cy &&
+            (region.points[i1][0] - region.points[i0][0]) * (cy - region.points[i0][1]) -
+            (region.points[i1][1] - region.points[i0][1]) * (cx - region.points[i0][0]) > 0) {
+          ++w;
+        }
+        if (region.points[i0][1] > cy && region.points[i1][1] <= cy &&
+            (region.points[i1][0] - region.points[i0][0]) * (cy - region.points[i0][1]) -
+            (region.points[i1][1] - region.points[i0][1]) * (cx - region.points[i0][0]) < 0) {
+          --w;
+        }
+      }
+      return w !== 0;
     }
     return false;
   }

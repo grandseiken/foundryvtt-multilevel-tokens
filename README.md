@@ -57,7 +57,7 @@ ignored. They also need to have been _created_ by a user with the `GAMEMASTER` r
 # Version history
 
 * **0.2.0**:
-  * Added support for non-rectangular regions.
+  * Added support for ellipse and polygon regions.
   * Fixed that a cloned token could be copy-pasted, resulting in a temporary stuck token.
 * **0.1.0**:
   * First version.
