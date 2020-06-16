@@ -59,6 +59,7 @@ class MultilevelTokens {
     Hooks.on("preUpdateDrawing", this._onPreUpdateDrawing.bind(this));
     Hooks.on("updateDrawing", this._onUpdateDrawing.bind(this));
     Hooks.on("deleteDrawing", this._onDeleteDrawing.bind(this));
+    Hooks.on("preCreateToken", this._onPreCreateToken.bind(this));
     Hooks.on("createToken", this._onCreateToken.bind(this));
     Hooks.on("preUpdateToken", this._onPreUpdateToken.bind(this));
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
@@ -332,21 +333,22 @@ class MultilevelTokens {
   }
 
   _execute(requestBatch) {
+    // isUndo: true prevents these commands from being undoable themselves.
+    const options = {isUndo: true};
+    options[MLT.REPLICATED_UPDATE] = true;
+
     let promise = Promise.resolve(null);
     for (const [sceneId, data] of Object.entries(requestBatch._scenes)) {
       const scene = game.scenes.get(sceneId);
       if (scene && data.delete.length) {
-        const options = {isUndo: true};
-        options[MLT.REPLICATED_UPDATE] = true;
         promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
       }
       if (scene && data.update.length) {
-        const options = {isUndo: true, diff: true};
-        options[MLT.REPLICATED_UPDATE] = true;
-        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.update, options));
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.update,
+                                                                Object.assign({diff: true}, options)));
       }
       if (scene && data.create.length) {
-        promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, {isUndo: true}));
+        promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, options));
       }
     }
     for (const f of requestBatch._extraActions) {
@@ -458,6 +460,10 @@ class MultilevelTokens {
     }
   }
 
+  _allowTokenOperation(token, options) {
+    return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
+  }
+
   _onReady() {
     // Replications might be out of sync if there was previously no GM and we just logged in.
     if (this._isOnlyGamemaster()) {
@@ -491,6 +497,10 @@ class MultilevelTokens {
     }
   }
 
+  _onPreCreateToken(scene, token, options, userId) {
+    return this._allowTokenOperation(token, options);
+  }
+
   _onCreateToken(scene, token, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
@@ -500,7 +510,10 @@ class MultilevelTokens {
   }
 
   _onPreUpdateToken(scene, token, update, options, userId) {
-    return this._onPreDeleteToken(scene, token, options, userId);
+    return this._allowTokenOperation(token, options) ||
+           // Also allow in case it's a replication that got out of sync somehow.
+           !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
+           !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION]);
   }
 
   _onUpdateToken(scene, token, update, options, userId) {
@@ -516,12 +529,7 @@ class MultilevelTokens {
   }
 
   _onPreDeleteToken(scene, token, options, userId) {
-    if (!this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options)) {
-      return true;
-    }
-    // Also allow delete in case it's a replication that got out of sync somehow.
-    return !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
-           !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION]);
+    return this._onPreUpdateToken(scene, token, {}, options, userId);
   }
 
   _onDeleteToken(scene, token, options, userId) {
