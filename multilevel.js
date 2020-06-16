@@ -119,7 +119,7 @@ class MultilevelTokens {
   }
 
   _isTaggedRegion(drawing, tags) {
-    return drawing.type == CONST.DRAWING_TYPES.RECTANGLE &&
+    return (drawing.type == CONST.DRAWING_TYPES.RECTANGLE || drawing.type == CONST.DRAWING_TYPES.ELLIPSE) &&
         this._isUserGamemaster(drawing.author) &&
         (tags.constructor === Array
             ? tags.some(t => drawing.text.startsWith(t))
@@ -138,8 +138,24 @@ class MultilevelTokens {
   _isTokenInRegion(token, scene, region) {
     const tokenX = token.x + token.width * scene.data.grid / 2;
     const tokenY = token.y + token.height * scene.data.grid / 2;
-    return tokenX >= region.x && tokenX <= region.x + region.width &&
-           tokenY >= region.y && tokenY <= region.y + region.height;
+
+    const inBox = tokenX >= region.x && tokenX <= region.x + region.width &&
+                  tokenY >= region.y && tokenY <= region.y + region.height;
+    if (!inBox) {
+      return false;
+    }
+    if (region.type === CONST.DRAWING_TYPES.RECTANGLE) {
+      return true;
+    }
+    if (region.type === CONST.DRAWING_TYPES.ELLIPSE) {
+      if (!region.width || !region.height) {
+        return false;
+      }
+      const dx = region.x + region.width / 2 - tokenX;
+      const dy = region.y + region.height / 2 - tokenY;
+      return 4 * (dx * dx) / (region.width * region.width) + 4 * (dy * dy) / (region.height * region.height) <= 1;
+    }
+    return false;
   }
 
   _mapTokenPosition(token, sourceScene, sourceRegion, targetScene, targetRegion) {
