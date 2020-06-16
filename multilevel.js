@@ -2,8 +2,11 @@ const MLT = {
   SCOPE: "multilevel-tokens",
   SETTING_TINT_COLOR: "tintcolor",
   DEFAULT_TINT_COLOR: "#808080",
-  SOURCE_TEXT_PREFIX: "@source:",
-  TARGET_TEXT_PREFIX: "@target:",
+  TAG_SOURCE: "@source:",
+  TAG_TARGET: "@target:",
+  TAG_IN: "@in:",
+  TAG_OUT: "@out:",
+  TAG_INOUT: "@inout:",
   FLAG_SOURCE_TOKEN: "stoken",
   FLAG_SOURCE_RECT: "srect",
   FLAG_TARGET_RECT: "trect",
@@ -12,7 +15,8 @@ const MLT = {
 
 class MltRequestBatch {
   constructor() {
-    this._scenes = {}
+    this._scenes = {};
+    this._extraActions = [];
   }
 
   createToken(scene, data) {
@@ -25,6 +29,10 @@ class MltRequestBatch {
 
   deleteToken(scene, id) {
     this._scene(scene).delete.push(id);
+  }
+
+  extraAction(f) {
+    this._extraActions.push(f);
   }
 
   _scene(scene) {
@@ -56,6 +64,7 @@ class MultilevelTokens {
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
     Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
+    this._lastTeleport = {};
     this._asyncQueue = null;
     this._asyncCount = 0;
     MultilevelTokens.log("Initialized");
@@ -78,6 +87,9 @@ class MultilevelTokens {
   }
 
   _isOnlyGamemaster() {
+    if (!game.user.isGM) {
+      return false;
+    }
     const activeGamemasters = this._getActiveGamemasters();
     return activeGamemasters.length === 1 && activeGamemasters[0] === game.user._id;
   }
@@ -85,36 +97,36 @@ class MultilevelTokens {
   _isPrimaryGamemaster() {
     // To ensure commands are only issued once, return true only if we are the
     // _first_ active GM.
+    if (!game.user.isGM) {
+      return false;
+    }
     const activeGamemasters = this._getActiveGamemasters();
     return activeGamemasters.length > 0 && activeGamemasters[0] === game.user._id;
   }
 
   _sceneOfDrawing(drawingId) {
-    return game.scenes.find(s => s.data.drawings.find(e => e._id === drawingId));
+    return game.scenes.find(s => s.data.drawings.some(e => e._id === drawingId));
   }
 
   _sceneOfToken(tokenId) {
-    return game.scenes.find(s => s.data.tokens.find(e => e._id === tokenId));
+    return game.scenes.find(s => s.data.tokens.some(e => e._id === tokenId));
   }
 
-  _isSourceRect(drawing) {
-    return this._isUserGamemaster(drawing.author) &&
-        drawing.type === CONST.DRAWING_TYPES.RECTANGLE &&
-        drawing.text.startsWith(MLT.SOURCE_TEXT_PREFIX);
+  _drawingById(drawingId) {
+    const scene = this._sceneOfDrawing(drawingId);
+    return scene && scene.data.drawings.find(e => e._id === drawingId);
   }
 
-  _isTargetRect(drawing) {
-    return this._isUserGamemaster(drawing.author) &&
-        drawing.type === CONST.DRAWING_TYPES.RECTANGLE &&
-        drawing.text.startsWith(MLT.TARGET_TEXT_PREFIX);
+  _isTaggedRect(drawing, tags) {
+    return drawing.type == CONST.DRAWING_TYPES.RECTANGLE &&
+        this._isUserGamemaster(drawing.author) &&
+        (tags.constructor === Array
+            ? tags.some(t => drawing.text.startsWith(t))
+            : drawing.text.startsWith(tags));
   }
 
-  _getSourceRectId(drawing) {
-    return drawing.text.substring(MLT.SOURCE_TEXT_PREFIX.length);
-  }
-
-  _getTargetRectId(drawing) {
-    return drawing.text.substring(MLT.TARGET_TEXT_PREFIX.length);
+  _getRectTag(drawing, tag) {
+    return this._isTaggedRect(drawing, tag) ? drawing.text.substring(tag.length) : null;
   }
 
   _isReplicatedToken(token) {
@@ -122,11 +134,11 @@ class MultilevelTokens {
         (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
   }
 
-  _isTokenInRect(token, sourceScene, sourceRect) {
-    const tokenX = token.x + token.width * sourceScene.data.grid / 2;
-    const tokenY = token.y + token.height * sourceScene.data.grid / 2;
-    return tokenX >= sourceRect.x && tokenX <= sourceRect.x + sourceRect.width &&
-           tokenY >= sourceRect.y && tokenY <= sourceRect.y + sourceRect.height;
+  _isTokenInRect(token, scene, rect) {
+    const tokenX = token.x + token.width * scene.data.grid / 2;
+    const tokenY = token.y + token.height * scene.data.grid / 2;
+    return tokenX >= rect.x && tokenX <= rect.x + rect.width &&
+           tokenY >= rect.y && tokenY <= rect.y + rect.height;
   }
 
   _mapTokenPosition(token, sourceScene, sourceRect, targetScene, targetRect) {
@@ -183,32 +195,23 @@ class MultilevelTokens {
     return data;
   }
 
-  _getTargetRectsForSourceRect(sourceRect) {
-    const id = this._getSourceRectId(sourceRect);
+  _getLinkedRectsForRectByTag(rect, rectTag, resultTags) {
+    const id = this._getRectTag(rect, rectTag);
+    if (!id) {
+      return [];
+    }
     return game.scenes.map(scene => scene.data.drawings
-        .filter(drawing => this._isTargetRect(drawing) && this._getTargetRectId(drawing) === id)
-        .map(targetRect => [sourceRect, targetRect])
+        .filter(drawing => drawing._id !== rect._id && (resultTags.constructor === Array
+            ? resultTags.some(t => this._getRectTag(drawing, t) === id)
+            : this._getRectTag(drawing, resultTags) === id))
+        .map(resultRect => [rect, scene, resultRect])
     ).flat();
   }
 
-  _getSourceRectsForTargetRect(targetRect) {
-    const id = this._getTargetRectId(targetRect);
-    return game.scenes.map(scene => scene.data.drawings
-        .filter(drawing => this._isSourceRect(drawing) && this._getSourceRectId(drawing) === id)
-        .map(drawing => [scene, drawing])
-    ).flat();
-  }
-
-  _getTokensToReplicateForRect(sourceScene, sourceRect) {
-    return sourceScene.data.tokens
-        .filter(token => this._isTokenInRect(token, sourceScene, sourceRect) &&
-                         !this._isReplicatedToken(token));
-  }
-
-  _getSourceRectsForSourceToken(token) {
+  _getTaggedRectsContainingToken(token, tags) {
     const sourceScene = this._sceneOfToken(token._id);
     return sourceScene.data.drawings
-        .filter(drawing => this._isSourceRect(drawing) &&
+        .filter(drawing => this._isTaggedRect(drawing, tags) &&
                            this._isTokenInRect(token, sourceScene, drawing));
   }
 
@@ -227,6 +230,12 @@ class MultilevelTokens {
                           token.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] === rect._id))
         .map(token => [scene, token])
     ).flat();
+  }
+
+  _getTokensToReplicateForRect(sourceScene, sourceRect) {
+    return sourceScene.data.tokens
+        .filter(token => this._isTokenInRect(token, sourceScene, sourceRect) &&
+                         !this._isReplicatedToken(token));
   }
 
   _replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect) {
@@ -260,9 +269,9 @@ class MultilevelTokens {
       return;
     }
 
-    this._getSourceRectsForSourceToken(token)
-        .flatMap(this._getTargetRectsForSourceRect.bind(this))
-        .forEach(([sourceRect, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
+    this._getTaggedRectsContainingToken(token, MLT.TAG_SOURCE)
+        .flatMap(r => this._getLinkedRectsForRectByTag(r, MLT.TAG_SOURCE, MLT.TAG_TARGET))
+        .forEach(([sourceRect, _, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
   }
 
   _updateAllReplicatedTokens(requestBatch, token) {
@@ -270,41 +279,43 @@ class MultilevelTokens {
       return;
     }
 
-    const mappedRects =  this._getSourceRectsForSourceToken(token)
-        .flatMap(this._getTargetRectsForSourceRect.bind(this));
+    const mappedRects =  this._getTaggedRectsContainingToken(token, MLT.TAG_SOURCE)
+        .flatMap(r => this._getLinkedRectsForRectByTag(r, MLT.TAG_SOURCE, MLT.TAG_TARGET));
 
     const tokensToDelete = [];
     const tokensToUpdate = [];
     this._getReplicatedTokensForSourceToken(token).forEach(([scene, replicatedToken]) => {
       const mappedRect = mappedRects
-          .find(([sourceRect, targetRect]) => replicatedToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] === sourceRect._id &&
-                                              replicatedToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] === targetRect._id);
+          .find(([sourceRect, _, targetRect]) => replicatedToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] === sourceRect._id &&
+                                                 replicatedToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] === targetRect._id);
 
       if (mappedRect) {
-        tokensToUpdate.push([mappedRect[0], mappedRect[1], replicatedToken]);
+        tokensToUpdate.push([mappedRect[0], mappedRect[2], replicatedToken]);
       } else {
         tokensToDelete.push([scene, replicatedToken]);
       }
     });
     const tokensToCreate = mappedRects
-        .filter(([s0, t0]) => !tokensToUpdate.find(([s1, t1, _]) => s0._id === s1._id && t0._id === t1._id));
+        .filter(([s0, _, t0]) => !tokensToUpdate.some(([s1, t1, _]) => s0._id === s1._id && t0._id === t1._id));
 
     tokensToDelete.forEach(([scene, t]) => requestBatch.deleteToken(scene, t._id));
     tokensToUpdate.forEach(([sourceRect, targetRect, t]) => this._updateReplicatedToken(requestBatch, token, t, sourceRect, targetRect));
-    tokensToCreate.forEach(([sourceRect, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
+    tokensToCreate.forEach(([sourceRect, _, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
   }
 
   _replicateAllFromSourceRect(requestBatch, sourceRect) {
     const sourceScene = this._sceneOfDrawing(sourceRect._id);
     const tokens = this._getTokensToReplicateForRect(sourceScene, sourceRect);
-    this._getTargetRectsForSourceRect(sourceRect).forEach(([_, targetRect]) => tokens
-        .forEach(token => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect)));
+    this._getLinkedRectsForRectByTag(sourceRect, MLT.TAG_SOURCE, MLT.TAG_TARGET)
+        .forEach(([_0, _1, targetRect]) =>
+            tokens.forEach(token => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect)));
   }
 
   _replicateAllToTargetRect(requestBatch, targetRect) {
-    this._getSourceRectsForTargetRect(targetRect).forEach(([sourceScene, sourceRect]) =>
-      this._getTokensToReplicateForRect(sourceScene, sourceRect)
-          .forEach(token => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect)));
+    this._getLinkedRectsForRectByTag(targetRect, MLT.TAG_TARGET, MLT.TAG_SOURCE)
+      .forEach(([_, sourceScene, sourceRect]) =>
+          this._getTokensToReplicateForRect(sourceScene, sourceRect)
+              .forEach(token => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect)));
   }
 
   _removeReplicationsForSourceToken(requestBatch, token) {
@@ -335,6 +346,9 @@ class MultilevelTokens {
         promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, {isUndo: true}));
       }
     }
+    for (const f of requestBatch._extraActions) {
+      promise = promise.then(f);
+    }
     return promise;
   }
 
@@ -355,10 +369,13 @@ class MultilevelTokens {
         this._asyncQueue = null;
       }
     };
-    if (this._asyncCount++ === 0) {
-      this._asyncQueue = batched().then(done);
+    if (this._asyncCount === 0) {
+      const result = batched();
+      ++this._asyncCount;
+      this._asyncQueue = result.finally(done);
     } else {
-      this._asyncQueue = this._asyncQueue.then(batched).then(done);
+      ++this._asyncCount;
+      this._asyncQueue = this._asyncQueue.finally(batched).finally(done);
     }
   }
 
@@ -370,10 +387,72 @@ class MultilevelTokens {
             .filter(this._isReplicatedToken.bind(this))
             .forEach(t => requestBatch.deleteToken(scene, t._id));
         scene.data.drawings
-            .filter(this._isSourceRect.bind(this))
+            .filter(r => this._isTaggedRect(r, MLT.TAG_SOURCE))
             .forEach(r => this._replicateAllFromSourceRect(requestBatch, r));
       });
     });
+  }
+
+  _setLastTeleport(token) {
+    if (game.user.isGM) {
+      this._lastTeleport[token._id] =
+          this._getTaggedRectsContainingToken(token, [MLT.TAG_IN, MLT.TAG_INOUT]).map(r => r._id);
+    }
+  }
+
+  _doTeleport(token) {
+    if (!this._isPrimaryGamemaster()) {
+      return;
+    }
+
+    const tokenScene = this._sceneOfToken(token._id);
+    let lastTeleport = this._lastTeleport[token._id];
+    let inRects = this._getTaggedRectsContainingToken(token, [MLT.TAG_IN, MLT.TAG_INOUT]);
+    if (lastTeleport) {
+      lastTeleport = lastTeleport.filter(id => inRects.some(r => r._id === id));
+      inRects = inRects.filter(r => !lastTeleport.includes(r._id));
+      if (lastTeleport.length) {
+        this._lastTeleport[token._id] = lastTeleport;
+      } else {
+        delete this._lastTeleport[token._id];
+      }
+    }
+    if (!inRects.length) {
+      return;
+    }
+
+    const inRect = inRects[Math.floor(inRects.length * Math.random())];
+    const inTag = this._isTaggedRect(inRect, MLT.TAG_IN) ? MLT.TAG_IN : MLT.TAG_INOUT;
+    const outRects = this._getLinkedRectsForRectByTag(inRect, inTag, [MLT.TAG_OUT, MLT.TAG_INOUT]);
+    if (!outRects.length) {
+      return;
+    }
+
+    const outRect = outRects[Math.floor(outRects.length * Math.random())];
+    const position = this._mapTokenPosition(token, tokenScene, inRect, outRect[1], outRect[2]);
+    if (outRect[1] === tokenScene) {
+      this._queueAsync(requestBatch => requestBatch.updateToken(tokenScene, {
+        _id: token._id,
+        x: position.x,
+        y: position.y,
+      }));
+    } else {
+      const data = duplicate(token);
+      delete data._id;
+      data.x = position.x;
+      data.y = position.y;
+
+      const actor = game.actors.get(token.actorId);
+      const owners = actor ? game.users.filter(u => !u.isGM && actor.hasPerm(u, "OWNER")) : [];
+
+      this._queueAsync(requestBatch => {
+        requestBatch.deleteToken(tokenScene, token._id);
+        requestBatch.createToken(outRect[1], data);
+        owners.forEach(user => {
+          requestBatch.extraAction(() => game.socket.emit("pullToScene", outRect[1]._id, user._id));
+        })
+      });
+    }
   }
 
   _onReady() {
@@ -384,10 +463,10 @@ class MultilevelTokens {
   }
 
   _onCreateDrawing(scene, drawing, options, userId) {
-    if (this._isSourceRect(drawing)) {
+    if (this._isTaggedRect(drawing, MLT.TAG_SOURCE)) {
       const d = duplicate(drawing);
       this._queueAsync(requestBatch => this._replicateAllFromSourceRect(requestBatch, d));
-    } else if (this._isTargetRect(drawing)) {
+    } else if (this._isTaggedRect(drawing, MLT.TAG_TARGET)) {
       const d = duplicate(drawing);
       this._queueAsync(requestBatch => this._replicateAllToTargetRect(requestBatch, d));
     }
@@ -403,7 +482,7 @@ class MultilevelTokens {
   }
 
   _onDeleteDrawing(scene, drawing, options, userId) {
-    if (this._isSourceRect(drawing) || this._isTargetRect(drawing)) {
+    if (this._isTaggedRect(drawing, [MLT.TAG_SOURCE, MLT.TAG_TARGET])) {
       const d = duplicate(drawing);
       this._queueAsync(requestBatch => this._removeReplicationsForRect(requestBatch, d));
     }
@@ -413,31 +492,43 @@ class MultilevelTokens {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._replicateTokenToAllRects(requestBatch, t));
+      this._setLastTeleport(t);
     }
   }
 
   _onPreUpdateToken(scene, token, update, options, userId) {
-    return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
+    return this._onPreDeleteToken(scene, token, options, userId);
   }
 
   _onUpdateToken(scene, token, update, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._updateAllReplicatedTokens(requestBatch, t));
+      if (MLT.REPLICATED_UPDATE in options) {
+        this._setLastTeleport(t);
+      } else {
+        this._doTeleport(t);
+      }
     }
   }
 
   _onPreDeleteToken(scene, token, options, userId) {
-    return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
+    if (!this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options)) {
+      return true;
+    }
+    // Also allow delete in case it's a replication that got out of sync somehow.
+    return !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT]) ||
+           !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT]);
   }
 
   _onDeleteToken(scene, token, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, t));
+      delete this._lastTeleport[token._id];
     }
   }
 }
 
 MultilevelTokens.log("Loaded");
-Hooks.on('init', () => game.multilevel = new MultilevelTokens())
+Hooks.on('init', () => game.multilevel = new MultilevelTokens());

@@ -10,6 +10,8 @@ For example, a source region is a part of a lower floor, and its target region i
 
 You could probably also use this functionality for other interesting things, like crystal balls, minimaps, or whatever else.
 
+As a bonus, since multi-level maps often need a way to travel between the floors, this module also supports simple teleports using a similar mechanism.
+
 # Installation
 
 You can install this module using the following public URL: `https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/master/module.json`
@@ -18,23 +20,33 @@ Remember to enable the module in `Manage Modules` menu after installation.
 
 # Usage guide
 
-## Creating linked regions
+## Creating cloned regions
 
 1. Use the rectangle drawing tool to create your source and target regions. You probably want to set them to hidden so that your players can't see them.
 2. Set the text labels on the regions (accessible via double right-click menu) to _exactly_ `@source:XXX` and `@target:XXX`, respectively, where `XXX` is some common identifier.
 3. That's it! Tokens in the source region will be mirrored in target regions with the matching identifier.
 
-## Notes
+### Notes
 
 * You can have more than one target region with the same identifier: tokens in the source region(s) get mirrored to all of them.
 * You can have more than one source region with the same identifier: tokens from all of them get mirrored to the targets.
 * Source and target regions can be on the same scene or different.
 * If the source and target regions are different sizes, the mirrored copies will get scaled up or down to fit. You probably want the aspect ratios to match though.
+* For small regions, you may need to reduce the label font size to allow resizing the rectangle. Or, you can add the label after the size is right.
 
 ![Example image](demo/1.gif)
 
 * If you want bidirectional syncing of tokens, you need to create two pairs of linked regions with different identifiers (both a source and a target in each place).
 * Cloned tokens can't be moved or deleted independently. They don't have a linked actor, aren't controlled by a player, and don't have vision. They have an extra tint applied to make them easily distinguishable, which can be changed in the `Module Settings` menu. They inherit most other properties (hidden, size, name, disposition, etc) from the original token.
+
+## Creating teleports
+
+Teleports work with marked regions just like the cloning system. The only difference is you need to label rectangles with `@in:XXX` for a teleport starting area, `@out:XXX` for a destination area, or `@inout:XXX` for a two-way area.
+
+Any token that moves into an `@in` or `@inout` region will be moved to the corresponding
+`@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene.
+
+![Example animation](demo/2.gif)
 
 ## Troubleshooting
 
