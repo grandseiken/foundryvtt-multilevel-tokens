@@ -61,7 +61,7 @@ class MultilevelTokens {
       onChange: this.refreshAll.bind(this),
     });
     game.settings.register(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS, {
-      name: "Animate movement for teleports",
+      name: "Animate teleports",
       hint: "If checked, tokens teleporting to the same scene will move to the new location with an animation rather than instantly.",
       scope: "world",
       config: true,
@@ -527,6 +527,7 @@ class MultilevelTokens {
 
     const outRegion = outRegions[Math.floor(outRegions.length * Math.random())];
     const position = this._mapTokenPosition(scene, token, inRegion, outRegion[1], outRegion[2]);
+    // TODO: wait for animation to complete before teleporting, if possible?
     if (outRegion[1] === scene) {
       const animate = game.settings.get(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS) || false;
       this._queueAsync(requestBatch => requestBatch.updateToken(scene, {
@@ -607,6 +608,17 @@ class MultilevelTokens {
   }
 
   _onUpdateToken(scene, token, update, options, userId) {
+    if (MLT.REPLICATED_UPDATE in options && "animate" in options && !options.animate &&
+        ('x' in update || 'y' in update)) {
+      // Workaround for issues with a non-animated position update on a token that is already animating.
+      const canvasToken = canvas.tokens.placeables.find(t => t.id === token._id);
+      if (canvasToken && canvasToken._movement) {
+        canvasToken._movement = null;
+        canvasToken.stopAnimation();
+        canvasToken._onUpdate({x: token.x, y: token.y}, {animate: false});
+        canvas.triggerPendingOperations();
+      }
+    }
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._updateAllReplicatedTokens(requestBatch, scene, t));
