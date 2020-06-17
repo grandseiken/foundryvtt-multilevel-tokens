@@ -7,9 +7,10 @@ const MLT = {
   TAG_IN: "@in:",
   TAG_OUT: "@out:",
   TAG_INOUT: "@inout:",
+  FLAG_SOURCE_SCENE: "sscene",
   FLAG_SOURCE_TOKEN: "stoken",
-  FLAG_SOURCE_RECT: "srect",
-  FLAG_TARGET_RECT: "trect",
+  FLAG_SOURCE_REGION: "srect",
+  FLAG_TARGET_REGION: "trect",
   REPLICATED_UPDATE: "mlt_bypass",
 };
 
@@ -55,10 +56,13 @@ class MultilevelTokens {
       onChange: this.refreshAll.bind(this),
     });
     Hooks.on("ready", this._onReady.bind(this));
+    Hooks.on("createScene", this.refreshAll.bind(this));
+    Hooks.on("deleteScene", this.refreshAll.bind(this));
     Hooks.on("createDrawing", this._onCreateDrawing.bind(this));
     Hooks.on("preUpdateDrawing", this._onPreUpdateDrawing.bind(this));
     Hooks.on("updateDrawing", this._onUpdateDrawing.bind(this));
     Hooks.on("deleteDrawing", this._onDeleteDrawing.bind(this));
+    Hooks.on("preCreateToken", this._onPreCreateToken.bind(this));
     Hooks.on("createToken", this._onCreateToken.bind(this));
     Hooks.on("preUpdateToken", this._onPreUpdateToken.bind(this));
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
@@ -72,6 +76,12 @@ class MultilevelTokens {
 
   static log(message) {
     console.log("Multilevel Tokens | " + message)
+  }
+
+  _rotate(cx, cy, x, y, degrees) {
+    const r = degrees * Math.PI / 180;
+    return [cx + (x - cx) * Math.cos(r) - (y - cy) * Math.sin(r),
+            cy + (x - cx) * Math.sin(r) + (y - cy) * Math.cos(r)];
   }
 
   _isUserGamemaster(userId) {
@@ -104,65 +114,136 @@ class MultilevelTokens {
     return activeGamemasters.length > 0 && activeGamemasters[0] === game.user._id;
   }
 
-  _sceneOfDrawing(drawingId) {
-    return game.scenes.find(s => s.data.drawings.some(e => e._id === drawingId));
-  }
-
-  _sceneOfToken(tokenId) {
-    return game.scenes.find(s => s.data.tokens.some(e => e._id === tokenId));
-  }
-
-  _drawingById(drawingId) {
-    const scene = this._sceneOfDrawing(drawingId);
-    return scene && scene.data.drawings.find(e => e._id === drawingId);
-  }
-
-  _isTaggedRect(drawing, tags) {
-    return drawing.type == CONST.DRAWING_TYPES.RECTANGLE &&
+  _isTaggedRegion(drawing, tags) {
+    return (drawing.type == CONST.DRAWING_TYPES.RECTANGLE ||
+            drawing.type == CONST.DRAWING_TYPES.ELLIPSE ||
+            drawing.type == CONST.DRAWING_TYPES.POLYGON) &&
         this._isUserGamemaster(drawing.author) &&
         (tags.constructor === Array
-            ? tags.some(t => drawing.text.startsWith(t))
-            : drawing.text.startsWith(tags));
+            ? tags.some(t => drawing.text && drawing.text.startsWith(t))
+            : drawing.text && drawing.text.startsWith(tags));
   }
 
-  _getRectTag(drawing, tag) {
-    return this._isTaggedRect(drawing, tag) ? drawing.text.substring(tag.length) : null;
+  _getRegionTag(drawing, tag) {
+    return this._isTaggedRegion(drawing, tag) ? drawing.text.substring(tag.length) : null;
   }
 
   _isReplicatedToken(token) {
-    return (MLT.SCOPE in token.flags) &&
-        (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
+    return token.flags && (MLT.SCOPE in token.flags) && (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
   }
 
-  _isTokenInRect(token, scene, rect) {
-    const tokenX = token.x + token.width * scene.data.grid / 2;
-    const tokenY = token.y + token.height * scene.data.grid / 2;
-    return tokenX >= rect.x && tokenX <= rect.x + rect.width &&
-           tokenY >= rect.y && tokenY <= rect.y + rect.height;
+  _isInvalidReplicatedToken(scene, token) {
+    if (!scene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
+      return true;
+    }
+    const sourceScene = (MLT.FLAG_SOURCE_SCENE in token.flags[MLT.SCOPE])
+        ? game.scenes.get(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE])
+        : scene;
+    if (!sourceScene) {
+      return false;
+    }
+    return !sourceScene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
+           !sourceScene.data.tokens.some(t => t._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
   }
 
-  _mapTokenPosition(token, sourceScene, sourceRect, targetScene, targetRect) {
-    const tokenX = token.x + token.width * sourceScene.data.grid / 2;
-    const tokenY = token.y + token.height * sourceScene.data.grid / 2;
-    const targetX = targetRect.x +
-        (tokenX - sourceRect.x) * (targetRect.width / sourceRect.width);
-    const targetY = targetRect.y +
-        (tokenY - sourceRect.y) * (targetRect.height / sourceRect.height);
+  _isReplicationForSourceToken(sourceScene, sourceToken, targetScene, targetToken) {
+    return targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === sourceToken._id &&
+        (MLT.FLAG_SOURCE_SCENE in targetToken.flags[MLT.SCOPE]
+            ? targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === sourceScene._id
+            : sourceScene === targetScene);
+  }
+
+  _isReplicationForRegion(scene, region, targetScene, targetToken) {
+    return (scene === targetScene && targetToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION] === region._id) ||
+       (targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION] === region._id &&
+            (MLT.FLAG_SOURCE_SCENE in targetToken.flags[MLT.SCOPE]
+                ? targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === scene._id
+                : scene === targetScene));
+  }
+
+  _isTokenInRegion(scene, token, region) {
+    let tokenX = token.x + token.width * scene.data.grid / 2;
+    let tokenY = token.y + token.height * scene.data.grid / 2;
+    if (region.rotation) {
+      const r = this._rotate(region.x + region.width / 2, region.y + region.height / 2,
+                             tokenX, tokenY, -region.rotation);
+      tokenX = r[0];
+      tokenY = r[1];
+    }
+
+    const inBox = tokenX >= region.x && tokenX <= region.x + region.width &&
+                  tokenY >= region.y && tokenY <= region.y + region.height;
+    if (!inBox) {
+      return false;
+    }
+    if (region.type === CONST.DRAWING_TYPES.RECTANGLE) {
+      return true;
+    }
+    if (region.type === CONST.DRAWING_TYPES.ELLIPSE) {
+      if (!region.width || !region.height) {
+        return false;
+      }
+      const dx = region.x + region.width / 2 - tokenX;
+      const dy = region.y + region.height / 2 - tokenY;
+      return 4 * (dx * dx) / (region.width * region.width) + 4 * (dy * dy) / (region.height * region.height) <= 1;
+    }
+    if (region.type == CONST.DRAWING_TYPES.POLYGON) {
+      const cx = tokenX - region.x;
+      const cy = tokenY - region.y;
+      let w = 0;
+      for (let i0 = 0; i0 < region.points.length; ++i0) {
+        let i1 = i0 + 1 == region.points.length ? 0 : i0 + 1;
+        if (region.points[i0][1] <= cy && region.points[i1][1] > cy &&
+            (region.points[i1][0] - region.points[i0][0]) * (cy - region.points[i0][1]) -
+            (region.points[i1][1] - region.points[i0][1]) * (cx - region.points[i0][0]) > 0) {
+          ++w;
+        }
+        if (region.points[i0][1] > cy && region.points[i1][1] <= cy &&
+            (region.points[i1][0] - region.points[i0][0]) * (cy - region.points[i0][1]) -
+            (region.points[i1][1] - region.points[i0][1]) * (cx - region.points[i0][0]) < 0) {
+          --w;
+        }
+      }
+      return w !== 0;
+    }
+    return false;
+  }
+
+  _mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion) {
+    let tokenX = token.x + token.width * sourceScene.data.grid / 2;
+    let tokenY = token.y + token.height * sourceScene.data.grid / 2;
+    if (sourceRegion.rotation) {
+      const r = this._rotate(sourceRegion.x + sourceRegion.width / 2, sourceRegion.y + sourceRegion.height / 2,
+                             tokenX, tokenY, -sourceRegion.rotation);
+      tokenX = r[0];
+      tokenY = r[1];
+    }
+
+    let targetX = targetRegion.x +
+        (tokenX - sourceRegion.x) * (targetRegion.width / sourceRegion.width);
+    let targetY = targetRegion.y +
+        (tokenY - sourceRegion.y) * (targetRegion.height / sourceRegion.height);
+    if (targetRegion.rotation) {
+      const r = this._rotate(targetRegion.x + targetRegion.width / 2, targetRegion.y + targetRegion.height / 2,
+                             targetX, targetY, targetRegion.rotation);
+      targetX = r[0];
+      targetY = r[1];
+    }
     return {
       x: targetX - token.width * targetScene.data.grid / 2,
       y: targetY - token.height * targetScene.data.grid / 2
     };
   }
 
-  _getScaleFactor(sourceScene, sourceRect, targetScene, targetRect) {
-    return Math.min((targetRect.width / targetScene.data.grid) / (sourceRect.width / sourceScene.data.grid),
-                    (targetRect.height / targetScene.data.grid) / (sourceRect.height/ sourceScene.data.grid));
+  _getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion) {
+    return Math.min((targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
+                    (targetRegion.height / targetScene.data.grid) / (sourceRegion.height/ sourceScene.data.grid));
   }
 
-  _getReplicatedTokenCreateData(token, sourceScene, sourceRect, targetScene, targetRect) {
+  _getReplicatedTokenCreateData(sourceScene, token, sourceRegion, targetScene, targetRegion) {
     const targetPosition =
-        this._mapTokenPosition(token, sourceScene, sourceRect, targetScene, targetRect);
-    const targetScaleFactor = this._getScaleFactor(sourceScene, sourceRect, targetScene, targetRect);
+        this._mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion);
+    const targetScaleFactor = this._getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion);
 
     const tintRgb = token.tint ? hexToRGB(colorStringToHex(token.tint)) : [1., 1., 1.];
     const multRgb = hexToRGB(colorStringToHex(
@@ -178,172 +259,172 @@ class MultilevelTokens {
     data.vision = false;
     data.x = targetPosition.x;
     data.y = targetPosition.y;
-    data.scale *= targetScaleFactor;
+    data.scale = data.scale ? data.scale * targetScaleFactor : targetScaleFactor;
+    data.rotation += targetRegion.rotation - sourceRegion.rotation;
     data.tint = "#" + rgbToHex(tintRgb).toString(16);
     data.flags = {};
     data.flags[MLT.SCOPE] = {};
+    if (sourceScene !== targetScene) {
+      data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] = sourceScene._id;
+    }
     data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] = token._id;
-    data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] = sourceRect._id;
-    data.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] = targetRect._id;
+    data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION] = sourceRegion._id;
+    data.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION] = targetRegion._id;
     return data;
   }
 
-  _getReplicatedTokenUpdateData(sourceToken, replicatedToken, sourceScene, sourceRect, targetScene, targetRect) {
-    const data = this._getReplicatedTokenCreateData(sourceToken, sourceScene, sourceRect, targetScene, targetRect);
-    data._id = replicatedToken._id;
+  _getReplicatedTokenUpdateData(sourceScene, sourceToken,  sourceRegion, targetScene, targetToken, targetRegion) {
+    const data = this._getReplicatedTokenCreateData(sourceScene, sourceToken, sourceRegion, targetScene, targetRegion);
+    data._id = targetToken._id;
     delete data.flags;
     return data;
   }
 
-  _getLinkedRectsForRectByTag(rect, rectTag, resultTags) {
-    const id = this._getRectTag(rect, rectTag);
+  _getLinkedRegionsByTag(scene, region, regionTag, resultTags) {
+    const id = this._getRegionTag(region, regionTag);
     if (!id) {
       return [];
     }
-    return game.scenes.map(scene => scene.data.drawings
-        .filter(drawing => drawing._id !== rect._id && (resultTags.constructor === Array
-            ? resultTags.some(t => this._getRectTag(drawing, t) === id)
-            : this._getRectTag(drawing, resultTags) === id))
-        .map(resultRect => [rect, scene, resultRect])
+    return game.scenes.map(resultScene => resultScene.data.drawings
+        .filter(drawing => (drawing._id !== region._id || scene !== resultScene) &&
+            (resultTags.constructor === Array
+                ? resultTags.some(t => this._getRegionTag(drawing, t) === id)
+                : this._getRegionTag(drawing, resultTags) === id))
+        .map(result => [region, resultScene, result])
     ).flat();
   }
 
-  _getTaggedRectsContainingToken(token, tags) {
-    const sourceScene = this._sceneOfToken(token._id);
-    return sourceScene.data.drawings
-        .filter(drawing => this._isTaggedRect(drawing, tags) &&
-                           this._isTokenInRect(token, sourceScene, drawing));
+  _getTaggedRegionsContainingToken(scene, token, tags) {
+    return scene.data.drawings
+        .filter(drawing => this._isTaggedRegion(drawing, tags) &&
+                           this._isTokenInRegion(scene, token, drawing));
   }
 
-  _getReplicatedTokensForSourceToken(sourceToken, f) {
+  _getReplicatedTokensForSourceToken(sourceScene, sourceToken) {
     return game.scenes.map(scene => scene.data.tokens
         .filter(token => this._isReplicatedToken(token) &&
-                         token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === sourceToken._id)
+                         this._isReplicationForSourceToken(sourceScene, sourceToken, scene, token))
         .map(token => [scene, token])
     ).flat();
   }
 
-  _getReplicatedTokensForRect(rect, f) {
-    return game.scenes.map(scene => scene.data.tokens
+  _getReplicatedTokensForRegion(scene, region) {
+    const scenes = this._isTaggedRegion(region, MLT.TAG_TARGET) ? [scene] : game.scenes;
+    return scenes.map(s => s.data.tokens
         .filter(token => this._isReplicatedToken(token) &&
-                         (token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] === rect._id ||
-                          token.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] === rect._id))
-        .map(token => [scene, token])
+                         this._isReplicationForRegion(scene, region, s, token))
+        .map(token => [s, token])
     ).flat();
   }
 
-  _getTokensToReplicateForRect(sourceScene, sourceRect) {
-    return sourceScene.data.tokens
-        .filter(token => this._isTokenInRect(token, sourceScene, sourceRect) &&
+  _getTokensToReplicateForRegion(scene, sourceRegion) {
+    return scene.data.tokens
+        .filter(token => this._isTokenInRegion(scene, token, sourceRegion) &&
                          !this._isReplicatedToken(token));
   }
 
-  _replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect) {
-    const sourceScene = this._sceneOfDrawing(sourceRect._id);
-    if (this._sceneOfToken(token._id) !== sourceScene ||
-        this._isReplicatedToken(token) || !this._isTokenInRect(token, sourceScene, sourceRect)) {
+  _replicateTokenFromRegionToRegion(requestBatch, scene, token, sourceRegion, targetScene, targetRegion) {
+    if (this._isReplicatedToken(token) || !this._isTokenInRegion(scene, token, sourceRegion)) {
       return;
     }
-
-    const targetScene = this._sceneOfDrawing(targetRect._id);
     requestBatch.createToken(targetScene,
-        this._getReplicatedTokenCreateData(token, sourceScene, sourceRect, targetScene, targetRect));
+        this._getReplicatedTokenCreateData(scene, token, sourceRegion, targetScene, targetRegion));
   }
 
-  _updateReplicatedToken(requestBatch, sourceToken, replicatedToken, sourceRect, targetRect) {
-    const sourceScene = this._sceneOfDrawing(sourceRect._id);
-    const targetScene = this._sceneOfDrawing(targetRect._id);
-    if (this._sceneOfToken(sourceToken._id) !== sourceScene ||
-        this._sceneOfToken(replicatedToken._id) !== targetScene ||
-        this._isReplicatedToken(sourceToken) || !this._isReplicatedToken(replicatedToken) ||
-        !this._isTokenInRect(sourceToken, sourceScene, sourceRect)) {
+  _updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion) {
+    if (this._isReplicatedToken(sourceToken) || !this._isReplicatedToken(targetToken) ||
+        !this._isTokenInRegion(sourceScene, sourceToken, sourceRegion)) {
       return;
     }
-
     requestBatch.updateToken(targetScene,
-        this._getReplicatedTokenUpdateData(sourceToken, replicatedToken, sourceScene, sourceRect, targetScene, targetRect));
+        this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion));
   }
 
-  _replicateTokenToAllRects(requestBatch, token) {
+  _replicateTokenToAllRegions(requestBatch, scene, token) {
     if (this._isReplicatedToken(token)) {
       return;
     }
 
-    this._getTaggedRectsContainingToken(token, MLT.TAG_SOURCE)
-        .flatMap(r => this._getLinkedRectsForRectByTag(r, MLT.TAG_SOURCE, MLT.TAG_TARGET))
-        .forEach(([sourceRect, _, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
+    this._getTaggedRegionsContainingToken(scene, token, MLT.TAG_SOURCE)
+        .flatMap(r => this._getLinkedRegionsByTag(scene, r, MLT.TAG_SOURCE, MLT.TAG_TARGET))
+        .forEach(([sourceRegion, targetScene, targetRegion]) =>
+            this._replicateTokenFromRegionToRegion(requestBatch, scene, token, sourceRegion, targetScene, targetRegion));
   }
 
-  _updateAllReplicatedTokens(requestBatch, token) {
+  _updateAllReplicatedTokens(requestBatch, scene, token) {
     if (this._isReplicatedToken(token)) {
       return;
     }
 
-    const mappedRects =  this._getTaggedRectsContainingToken(token, MLT.TAG_SOURCE)
-        .flatMap(r => this._getLinkedRectsForRectByTag(r, MLT.TAG_SOURCE, MLT.TAG_TARGET));
+    const mappedRegions =  this._getTaggedRegionsContainingToken(scene, token, MLT.TAG_SOURCE)
+        .flatMap(r => this._getLinkedRegionsByTag(scene, r, MLT.TAG_SOURCE, MLT.TAG_TARGET));
 
     const tokensToDelete = [];
     const tokensToUpdate = [];
-    this._getReplicatedTokensForSourceToken(token).forEach(([scene, replicatedToken]) => {
-      const mappedRect = mappedRects
-          .find(([sourceRect, _, targetRect]) => replicatedToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT] === sourceRect._id &&
-                                                 replicatedToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT] === targetRect._id);
+    this._getReplicatedTokensForSourceToken(scene, token).forEach(([targetScene, targetToken]) => {
+      const mappedRegion = mappedRegions.find(([sourceRegion, mapScene, mapRegion]) =>
+          this._isReplicationForRegion(scene, sourceRegion, targetScene, targetToken) &&
+          this._isReplicationForRegion(mapScene, mapRegion, targetScene, targetToken));
 
-      if (mappedRect) {
-        tokensToUpdate.push([mappedRect[0], mappedRect[2], replicatedToken]);
+      if (mappedRegion) {
+        tokensToUpdate.push([mappedRegion[0], targetScene, targetToken, mappedRegion[2]]);
       } else {
-        tokensToDelete.push([scene, replicatedToken]);
+        tokensToDelete.push([targetScene, targetToken]);
       }
     });
-    const tokensToCreate = mappedRects
-        .filter(([s0, _, t0]) => !tokensToUpdate.some(([s1, t1, _]) => s0._id === s1._id && t0._id === t1._id));
+    const tokensToCreate = mappedRegions.filter(([r0, s0, t0]) =>
+        !tokensToUpdate.some(([r1, s1, _, t1]) => s0 === s1 && r0._id === r1._id && t0._id === t1._id));
 
     tokensToDelete.forEach(([scene, t]) => requestBatch.deleteToken(scene, t._id));
-    tokensToUpdate.forEach(([sourceRect, targetRect, t]) => this._updateReplicatedToken(requestBatch, token, t, sourceRect, targetRect));
-    tokensToCreate.forEach(([sourceRect, _, targetRect]) => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect));
+    tokensToUpdate.forEach(([sourceRegion, targetScene, t, targetRegion]) =>
+        this._updateReplicatedToken(requestBatch, scene, token, sourceRegion, targetScene, t, targetRegion));
+    tokensToCreate.forEach(([sourceRegion, targetScene, targetRegion]) =>
+        this._replicateTokenFromRegionToRegion(requestBatch, scene, token, sourceRegion, targetScene, targetRegion));
   }
 
-  _replicateAllFromSourceRect(requestBatch, sourceRect) {
-    const sourceScene = this._sceneOfDrawing(sourceRect._id);
-    const tokens = this._getTokensToReplicateForRect(sourceScene, sourceRect);
-    this._getLinkedRectsForRectByTag(sourceRect, MLT.TAG_SOURCE, MLT.TAG_TARGET)
-        .forEach(([_0, _1, targetRect]) =>
-            tokens.forEach(token => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect)));
+  _replicateAllFromSourceRegion(requestBatch, sourceScene, sourceRegion) {
+    const tokens = this._getTokensToReplicateForRegion(sourceScene, sourceRegion);
+    this._getLinkedRegionsByTag(sourceScene, sourceRegion, MLT.TAG_SOURCE, MLT.TAG_TARGET)
+        .forEach(([_0, targetScene, targetRegion]) =>
+            tokens.forEach(token =>
+                this._replicateTokenFromRegionToRegion(requestBatch, sourceScene, token, sourceRegion, targetScene, targetRegion)));
   }
 
-  _replicateAllToTargetRect(requestBatch, targetRect) {
-    this._getLinkedRectsForRectByTag(targetRect, MLT.TAG_TARGET, MLT.TAG_SOURCE)
-      .forEach(([_, sourceScene, sourceRect]) =>
-          this._getTokensToReplicateForRect(sourceScene, sourceRect)
-              .forEach(token => this._replicateTokenFromRectToRect(requestBatch, token, sourceRect, targetRect)));
+  _replicateAllToTargetRegion(requestBatch, targetScene, targetRegion) {
+    this._getLinkedRegionsByTag(targetScene, targetRegion, MLT.TAG_TARGET, MLT.TAG_SOURCE)
+      .forEach(([_, sourceScene, sourceRegion]) =>
+          this._getTokensToReplicateForRegion(sourceScene, sourceRegion)
+              .forEach(token =>
+                  this._replicateTokenFromRegionToRegion(requestBatch, sourceScene, token, sourceRegion, targetScene, targetRegion)));
   }
 
-  _removeReplicationsForSourceToken(requestBatch, token) {
-    this._getReplicatedTokensForSourceToken(token)
-        .forEach(([scene, t]) => requestBatch.deleteToken(scene, t._id));
+  _removeReplicationsForSourceToken(requestBatch, scene, token) {
+    this._getReplicatedTokensForSourceToken(scene, token)
+        .forEach(([s, t]) => requestBatch.deleteToken(s, t._id));
   }
 
-  _removeReplicationsForRect(requestBatch, rect) {
-    this._getReplicatedTokensForRect(rect)
-        .forEach(([scene, t]) => requestBatch.deleteToken(scene, t._id));
+  _removeReplicationsForRegion(requestBatch, scene, region) {
+    this._getReplicatedTokensForRegion(scene, region)
+        .forEach(([s, t]) => requestBatch.deleteToken(s, t._id));
   }
 
   _execute(requestBatch) {
+    // isUndo: true prevents these commands from being undoable themselves.
+    const options = {isUndo: true};
+    options[MLT.REPLICATED_UPDATE] = true;
+
     let promise = Promise.resolve(null);
     for (const [sceneId, data] of Object.entries(requestBatch._scenes)) {
       const scene = game.scenes.get(sceneId);
       if (scene && data.delete.length) {
-        const options = {isUndo: true};
-        options[MLT.REPLICATED_UPDATE] = true;
         promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
       }
       if (scene && data.update.length) {
-        const options = {isUndo: true, diff: true};
-        options[MLT.REPLICATED_UPDATE] = true;
-        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.update, options));
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.update,
+                                                                Object.assign({diff: true}, options)));
       }
       if (scene && data.create.length) {
-        promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, {isUndo: true}));
+        promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, options));
       }
     }
     for (const f of requestBatch._extraActions) {
@@ -387,51 +468,50 @@ class MultilevelTokens {
             .filter(this._isReplicatedToken.bind(this))
             .forEach(t => requestBatch.deleteToken(scene, t._id));
         scene.data.drawings
-            .filter(r => this._isTaggedRect(r, MLT.TAG_SOURCE))
-            .forEach(r => this._replicateAllFromSourceRect(requestBatch, r));
+            .filter(r => this._isTaggedRegion(r, MLT.TAG_SOURCE))
+            .forEach(r => this._replicateAllFromSourceRegion(requestBatch, scene, r));
       });
     });
   }
 
-  _setLastTeleport(token) {
+  _setLastTeleport(scene, token) {
     if (game.user.isGM) {
       this._lastTeleport[token._id] =
-          this._getTaggedRectsContainingToken(token, [MLT.TAG_IN, MLT.TAG_INOUT]).map(r => r._id);
+          this._getTaggedRegionsContainingToken(scene, token, [MLT.TAG_IN, MLT.TAG_INOUT]).map(r => r._id);
     }
   }
 
-  _doTeleport(token) {
+  _doTeleport(scene, token) {
     if (!this._isPrimaryGamemaster()) {
       return;
     }
 
-    const tokenScene = this._sceneOfToken(token._id);
     let lastTeleport = this._lastTeleport[token._id];
-    let inRects = this._getTaggedRectsContainingToken(token, [MLT.TAG_IN, MLT.TAG_INOUT]);
+    let inRegions = this._getTaggedRegionsContainingToken(scene, token, [MLT.TAG_IN, MLT.TAG_INOUT]);
     if (lastTeleport) {
-      lastTeleport = lastTeleport.filter(id => inRects.some(r => r._id === id));
-      inRects = inRects.filter(r => !lastTeleport.includes(r._id));
+      lastTeleport = lastTeleport.filter(id => inRegions.some(r => r._id === id));
+      inRegions = inRegions.filter(r => !lastTeleport.includes(r._id));
       if (lastTeleport.length) {
         this._lastTeleport[token._id] = lastTeleport;
       } else {
         delete this._lastTeleport[token._id];
       }
     }
-    if (!inRects.length) {
+    if (!inRegions.length) {
       return;
     }
 
-    const inRect = inRects[Math.floor(inRects.length * Math.random())];
-    const inTag = this._isTaggedRect(inRect, MLT.TAG_IN) ? MLT.TAG_IN : MLT.TAG_INOUT;
-    const outRects = this._getLinkedRectsForRectByTag(inRect, inTag, [MLT.TAG_OUT, MLT.TAG_INOUT]);
-    if (!outRects.length) {
+    const inRegion = inRegions[Math.floor(inRegions.length * Math.random())];
+    const inTag = this._isTaggedRegion(inRegion, MLT.TAG_IN) ? MLT.TAG_IN : MLT.TAG_INOUT;
+    const outRegions = this._getLinkedRegionsByTag(scene, inRegion, inTag, [MLT.TAG_OUT, MLT.TAG_INOUT]);
+    if (!outRegions.length) {
       return;
     }
 
-    const outRect = outRects[Math.floor(outRects.length * Math.random())];
-    const position = this._mapTokenPosition(token, tokenScene, inRect, outRect[1], outRect[2]);
-    if (outRect[1] === tokenScene) {
-      this._queueAsync(requestBatch => requestBatch.updateToken(tokenScene, {
+    const outRegion = outRegions[Math.floor(outRegions.length * Math.random())];
+    const position = this._mapTokenPosition(scene, token, inRegion, outRegion[1], outRegion[2]);
+    if (outRegion[1] === scene) {
+      this._queueAsync(requestBatch => requestBatch.updateToken(scene, {
         _id: token._id,
         x: position.x,
         y: position.y,
@@ -446,13 +526,17 @@ class MultilevelTokens {
       const owners = actor ? game.users.filter(u => !u.isGM && actor.hasPerm(u, "OWNER")) : [];
 
       this._queueAsync(requestBatch => {
-        requestBatch.deleteToken(tokenScene, token._id);
-        requestBatch.createToken(outRect[1], data);
+        requestBatch.deleteToken(scene, token._id);
+        requestBatch.createToken(outRegion[1], data);
         owners.forEach(user => {
-          requestBatch.extraAction(() => game.socket.emit("pullToScene", outRect[1]._id, user._id));
+          requestBatch.extraAction(() => game.socket.emit("pullToScene", outRegion[1]._id, user._id));
         })
       });
     }
+  }
+
+  _allowTokenOperation(token, options) {
+    return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
   }
 
   _onReady() {
@@ -463,12 +547,12 @@ class MultilevelTokens {
   }
 
   _onCreateDrawing(scene, drawing, options, userId) {
-    if (this._isTaggedRect(drawing, MLT.TAG_SOURCE)) {
+    if (this._isTaggedRegion(drawing, MLT.TAG_SOURCE)) {
       const d = duplicate(drawing);
-      this._queueAsync(requestBatch => this._replicateAllFromSourceRect(requestBatch, d));
-    } else if (this._isTaggedRect(drawing, MLT.TAG_TARGET)) {
+      this._queueAsync(requestBatch => this._replicateAllFromSourceRegion(requestBatch, scene, d));
+    } else if (this._isTaggedRegion(drawing, MLT.TAG_TARGET)) {
       const d = duplicate(drawing);
-      this._queueAsync(requestBatch => this._replicateAllToTargetRect(requestBatch, d));
+      this._queueAsync(requestBatch => this._replicateAllToTargetRegion(requestBatch, scene, d));
     }
   }
 
@@ -482,49 +566,48 @@ class MultilevelTokens {
   }
 
   _onDeleteDrawing(scene, drawing, options, userId) {
-    if (this._isTaggedRect(drawing, [MLT.TAG_SOURCE, MLT.TAG_TARGET])) {
+    if (this._isTaggedRegion(drawing, [MLT.TAG_SOURCE, MLT.TAG_TARGET])) {
       const d = duplicate(drawing);
-      this._queueAsync(requestBatch => this._removeReplicationsForRect(requestBatch, d));
+      this._queueAsync(requestBatch => this._removeReplicationsForRegion(requestBatch, scene, d));
     }
+  }
+
+  _onPreCreateToken(scene, token, options, userId) {
+    return this._allowTokenOperation(token, options);
   }
 
   _onCreateToken(scene, token, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(requestBatch => this._replicateTokenToAllRects(requestBatch, t));
-      this._setLastTeleport(t);
+      this._queueAsync(requestBatch => this._replicateTokenToAllRegions(requestBatch, scene, t));
+      this._setLastTeleport(scene, token);
     }
   }
 
   _onPreUpdateToken(scene, token, update, options, userId) {
-    return this._onPreDeleteToken(scene, token, options, userId);
+    return this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token);
   }
 
   _onUpdateToken(scene, token, update, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(requestBatch => this._updateAllReplicatedTokens(requestBatch, t));
+      this._queueAsync(requestBatch => this._updateAllReplicatedTokens(requestBatch, scene, t));
       if (MLT.REPLICATED_UPDATE in options) {
-        this._setLastTeleport(t);
+        this._setLastTeleport(scene, token);
       } else {
-        this._doTeleport(t);
+        this._doTeleport(scene, token);
       }
     }
   }
 
   _onPreDeleteToken(scene, token, options, userId) {
-    if (!this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options)) {
-      return true;
-    }
-    // Also allow delete in case it's a replication that got out of sync somehow.
-    return !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_RECT]) ||
-           !this._drawingById(token.flags[MLT.SCOPE][MLT.FLAG_TARGET_RECT]);
+    return this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token);
   }
 
   _onDeleteToken(scene, token, options, userId) {
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, t));
+      this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, scene, t));
       delete this._lastTeleport[token._id];
     }
   }
