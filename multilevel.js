@@ -1,6 +1,7 @@
 const MLT = {
   SCOPE: "multilevel-tokens",
   SETTING_TINT_COLOR: "tintcolor",
+  SETTING_ANIMATE_TELEPORTS: "animateteleports",
   DEFAULT_TINT_COLOR: "#808080",
   TAG_SOURCE: "@source:",
   TAG_TARGET: "@target:",
@@ -24,8 +25,8 @@ class MltRequestBatch {
     this._scene(scene).create.push(data);
   }
 
-  updateToken(scene, data) {
-    this._scene(scene).update.push(data);
+  updateToken(scene, data, animate=true) {
+    (animate ? this._scene(scene).updateAnimated : this._scene(scene).updateInstant).push(data);
   }
 
   deleteToken(scene, id) {
@@ -38,7 +39,11 @@ class MltRequestBatch {
 
   _scene(scene) {
     if (!(scene._id in this._scenes)) {
-      this._scenes[scene._id] = {create: [], update: [], delete: []};
+      this._scenes[scene._id] = {
+        create: [],
+        updateAnimated: [],
+        updateInstant: [],
+        delete: []};
     }
     return this._scenes[scene._id];
   }
@@ -54,6 +59,14 @@ class MultilevelTokens {
       type: String,
       default: MLT.DEFAULT_TINT_COLOR,
       onChange: this.refreshAll.bind(this),
+    });
+    game.settings.register(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS, {
+      name: "Animate movement for teleports",
+      hint: "If checked, tokens teleporting to the same scene will move to the new location with an animation rather than instantly.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: false
     });
     Hooks.on("ready", this._onReady.bind(this));
     Hooks.on("createScene", this.refreshAll.bind(this));
@@ -419,9 +432,13 @@ class MultilevelTokens {
       if (scene && data.delete.length) {
         promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
       }
-      if (scene && data.update.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.update,
+      if (scene && data.updateAnimated.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateAnimated,
                                                                 Object.assign({diff: true}, options)));
+      }
+      if (scene && data.updateInstant.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateInstant,
+                                                                Object.assign({diff: true, animate: false}, options)));
       }
       if (scene && data.create.length) {
         promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, options));
@@ -511,11 +528,12 @@ class MultilevelTokens {
     const outRegion = outRegions[Math.floor(outRegions.length * Math.random())];
     const position = this._mapTokenPosition(scene, token, inRegion, outRegion[1], outRegion[2]);
     if (outRegion[1] === scene) {
+      const animate = game.settings.get(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS) || false;
       this._queueAsync(requestBatch => requestBatch.updateToken(scene, {
         _id: token._id,
         x: position.x,
         y: position.y,
-      }));
+      }, animate));
     } else {
       const data = duplicate(token);
       delete data._id;

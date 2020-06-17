@@ -53,6 +53,7 @@ Any token that moves into an `@in` or `@inout` region will be moved to the corre
 
 * Drawings need to have been _created_ by a user with the `GAMEMASTER` role in order to function as linked regions.
 * The module needs a Gamemaster logged in to function properly, since it works by tracking changes on the GM's client and issuing commands with GM permissions in the background to manipulate tokens. If tokens get out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens.
+* Note the above point means performance impact should be low, because all the complicated logic runs only on the GM's client. Other clients only have to deal with the resulting automated token updates.
 
 # Version history
 
