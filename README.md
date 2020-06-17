@@ -59,7 +59,8 @@ Any token that moves into an `@in` or `@inout` region will be moved to the corre
 * **0.2.0**:
   * Added support for ellipse and polygon regions.
   * Rotation of drawings is now taken into account.
-  * Fixed that entities were referred to by ID rather than GUID. This could result in incorrect behaviour after duplicating a scene.
+  * Cloned regions now update when a scene is created or deleted.
+  * Fixed incorrect behaviour that could occur when a scene was duplicated.
   * Fixed that a cloned token could be copy-pasted, resulting in a temporary stuck token.
   * Fixed an error that could occur when a rectangle had no `text` property.
 * **0.1.0**:
