@@ -282,7 +282,7 @@ class MultilevelTokens {
 
     const data = duplicate(token);
     delete data._id;
-    delete data.actorId;
+    data.actorId = "";
     data.actorLink = false;
     data.vision = false;
     data.x = targetPosition.x;
