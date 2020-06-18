@@ -9,6 +9,7 @@ const MLT = {
   TAG_IN: "@in:",
   TAG_OUT: "@out:",
   TAG_INOUT: "@inout:",
+  TAG_LOCAL_PREFIX: "!",
   FLAG_SOURCE_SCENE: "sscene",
   FLAG_SOURCE_TOKEN: "stoken",
   FLAG_SOURCE_REGION: "srect",
@@ -63,11 +64,11 @@ class MultilevelTokens {
     });
     game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_TARGET, {
       name: "Auto-target sync",
-      hint: "If checked, targeting or detargeting a token will also target or detarget its clones (or originals).",
+      hint: "If checked, targeting or detargeting a token will also target or detarget its clones (or originals). Turn this off if it interferes with things.",
       scope: "world",
       config: true,
       type: Boolean,
-      default: false
+      default: true
     });
     game.settings.register(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS, {
       name: "Animate teleports",
@@ -312,11 +313,16 @@ class MultilevelTokens {
     if (!id) {
       return [];
     }
+    const tagMatch = resultTags.constructor === Array
+        ? drawing => resultTags.some(t => this._getRegionTag(drawing, t) === id)
+        : drawing => this._getRegionTag(drawing, resultTags) === id;
+    if (id.startsWith(MLT.TAG_LOCAL_PREFIX)) {
+      return scene.data.drawings
+          .filter(d => d._id !== region._id && tagMatch(d))
+          .map(result => [region, scene, result]);
+    }
     return game.scenes.map(resultScene => resultScene.data.drawings
-        .filter(drawing => (drawing._id !== region._id || scene !== resultScene) &&
-            (resultTags.constructor === Array
-                ? resultTags.some(t => this._getRegionTag(drawing, t) === id)
-                : this._getRegionTag(drawing, resultTags) === id))
+        .filter(d => (d._id !== region._id || scene !== resultScene) && tagMatch(d))
         .map(result => [region, resultScene, result])
     ).flat();
   }
@@ -336,7 +342,9 @@ class MultilevelTokens {
   }
 
   _getReplicatedTokensForRegion(scene, region) {
-    const scenes = this._isTaggedRegion(region, MLT.TAG_TARGET) ? [scene] : game.scenes;
+    const sourceTag = this._getRegionTag(region, MLT.TAG_SOURCE);
+    const scenes = (sourceTag && sourceTag.startsWith(MLT.TAG_LOCAL_PREFIX)) ||
+        this._isTaggedRegion(region, MLT.TAG_TARGET) ? [scene] : game.scenes;
     return scenes.map(s => s.data.tokens
         .filter(token => this._isReplicatedToken(token) &&
                          this._isReplicationForRegion(scene, region, s, token))

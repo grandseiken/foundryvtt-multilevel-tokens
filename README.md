@@ -57,6 +57,10 @@ Any token that moves into an `@in` or `@inout` region will be moved to the corre
 
 # Version history
 
+* **Next**:
+  * Animate tokens option.
+  * Auto-target sync option.
+  * `!` prefix to restrict to local only.
 * **0.2.0**:
   * Added support for ellipse and polygon regions.
   * Rotation of drawings is now taken into account.
