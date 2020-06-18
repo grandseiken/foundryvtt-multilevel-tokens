@@ -2,6 +2,7 @@ const MLT = {
   SCOPE: "multilevel-tokens",
   SETTING_TINT_COLOR: "tintcolor",
   SETTING_ANIMATE_TELEPORTS: "animateteleports",
+  SETTING_AUTO_TARGET: "autotarget",
   DEFAULT_TINT_COLOR: "#808080",
   TAG_SOURCE: "@source:",
   TAG_TARGET: "@target:",
@@ -60,6 +61,14 @@ class MultilevelTokens {
       default: MLT.DEFAULT_TINT_COLOR,
       onChange: this.refreshAll.bind(this),
     });
+    game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_TARGET, {
+      name: "Auto-target sync",
+      hint: "If checked, targeting or detargeting a token will also target or detarget its clones (or originals).",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: false
+    });
     game.settings.register(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS, {
       name: "Animate teleports",
       hint: "If checked, tokens teleporting to the same scene will move to the new location with an animation rather than instantly.",
@@ -81,6 +90,7 @@ class MultilevelTokens {
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
     Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
+    Hooks.on("targetToken", this._onTargetToken.bind(this));
     this._lastTeleport = {};
     this._asyncQueue = null;
     this._asyncCount = 0;
@@ -145,13 +155,17 @@ class MultilevelTokens {
     return token.flags && (MLT.SCOPE in token.flags) && (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
   }
 
+  _getSourceSceneForReplicatedToken(scene, token) {
+    return (MLT.FLAG_SOURCE_SCENE in token.flags[MLT.SCOPE])
+        ? game.scenes.get(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE])
+        : scene;
+  }
+
   _isInvalidReplicatedToken(scene, token) {
     if (!scene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
       return true;
     }
-    const sourceScene = (MLT.FLAG_SOURCE_SCENE in token.flags[MLT.SCOPE])
-        ? game.scenes.get(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE])
-        : scene;
+    const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
     if (!sourceScene) {
       return false;
     }
@@ -640,6 +654,34 @@ class MultilevelTokens {
       this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, scene, t));
       delete this._lastTeleport[token._id];
     }
+  }
+
+  _onTargetToken(user, token, targeted) {
+    // Auto-targetting handled on user's client, since targetting is scene-local.
+    if (user !== game.user || !game.settings.get(MLT.SCOPE, MLT.SETTING_AUTO_TARGET)) {
+      return;
+    }
+    const isReplicated = this._isReplicatedToken(token.data);
+    canvas.tokens.placeables.forEach(t => {
+      if (t === token) {
+        return;
+      }
+      let isLinked = false;
+      if (isReplicated) {
+        isLinked = this._isReplicatedToken(t.data)
+            ? t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === token.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] &&
+              t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]
+            : !(MLT.FLAG_SOURCE_SCENE in token.data.flags[MLT.SCOPE]) &&
+              token.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === t.data._id;
+      } else {
+        isLinked = this._isReplicatedToken(t.data) &&
+            !(MLT.FLAG_SOURCE_SCENE in t.data.flags[MLT.SCOPE]) &&
+            t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token.data._id;
+      }
+      if (isLinked && targeted !== user.targets.has(t)) {
+        t.setTarget(targeted, {releaseOthers: false, groupSelection: true});
+      }
+    });
   }
 }
 
