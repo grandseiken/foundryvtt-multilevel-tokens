@@ -92,6 +92,7 @@ class MultilevelTokens {
     Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
     Hooks.on("targetToken", this._onTargetToken.bind(this));
+    Hooks.on("preCreateCombatant", this._onPreCreateCombatant.bind(this));
     this._lastTeleport = {};
     this._asyncQueue = null;
     this._asyncCount = 0;
@@ -457,6 +458,15 @@ class MultilevelTokens {
     for (const [sceneId, data] of Object.entries(requestBatch._scenes)) {
       const scene = game.scenes.get(sceneId);
       if (scene && data.delete.length) {
+        // Also remove from combats.
+        for (const combat of game.combats.entities) {
+          if (combat.scene === scene) {
+            const combatants = data.delete.map(id => combat.getCombatantByToken(id)).flatMap(c => c ? [c._id] : []);
+            if (combatants.length) {
+              promise = promise.then(() => combat.deleteEmbeddedEntity("Combatant", combatants));
+            }
+          }
+        }
         promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
       }
       if (scene && data.updateAnimated.length) {
@@ -709,6 +719,27 @@ class MultilevelTokens {
         t.setTarget(targeted, {releaseOthers: false, groupSelection: true});
       }
     });
+  }
+
+  _onPreCreateCombatant(combat, combatant, options, userId) {
+    const token = combat.scene.data.tokens.find(t => t._id === combatant.tokenId);
+    if (!token || !this._isReplicatedToken(token)) {
+      return true;
+    }
+    const sourceScene = this._getSourceSceneForReplicatedToken(combat.scene, token);
+    if (sourceScene !== combat.scene) {
+      return true;
+    }
+    const sourceToken = this._getSourceTokenForReplicatedToken(combat.scene, token);
+    if (sourceToken) {
+      const activeCombatant = combat.getCombatantByToken(sourceToken._id);
+      if (activeCombatant) {
+        combat.deleteEmbeddedEntity("Combatant", activeCombatant._id);
+      } else {
+        combat.createEmbeddedEntity("Combatant", { tokenId: sourceToken._id, hidden: sourceToken.hidden});
+      }
+    }
+    return false;
   }
 }
 

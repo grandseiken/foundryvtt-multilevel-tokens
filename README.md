@@ -38,7 +38,7 @@ Remember to enable the module in `Manage Modules` menu after installation.
 
 * If you want bidirectional syncing of tokens, you need to create two pairs of linked regions with different identifiers (both a source and a target in each place).
 * Cloned tokens can't be moved or deleted independently. They don't have a linked actor, aren't controlled by a player, and don't have vision. They have an extra tint applied to make them easily distinguishable, which can be changed in the `Module Settings` menu. They inherit most other properties (hidden, size, name, disposition, etc) from the original token.
-* By default, when a player targets or detargets a token, they will also target or detarget any clones or originals of that token. You can turn this off in the `Module Settings` menu if it interferes with anything.
+* By default, when a player targets or detargets a token, they will also target or detarget any clones or originals of that token. You can turn this off in the `Module Settings` menu if it interferes with anything. Similarly, adding a cloned token to combat will add the original copy to combat instead, as long as it's on the same scene.
 
 ## Creating teleports
 
@@ -67,10 +67,12 @@ In the `Module Settings` menu you can choose whether a teleport to the same scen
 
 * **0.3.0**:
   * Added a module setting to animate token movement when teleporting to the scene same, default off.
-  * Added a module setting to synchronize targeting between original and cloned tokens, default on.
-  * Region identifiers that start with `!` are now scene-local and won't match with regions on other scenes.
+  * Added a module setting to synchronize player targeting between original and cloned tokens, default on.
+  * Toggling the combat state of a cloned token will now toggle the combat state of its original instead, if on the same scene.
   * Editing a cloned token via the token configuration menu will now edit the original token rather than silently discarding the update.
+  * Region identifiers that start with `!` are now scene-local and won't match with regions on other scenes.
   * Fixed compatibility issue with missing actor ID on cloned tokens, affecting at least the Token Mold module.
+  * Fixed removing tokens from combat when deleted by the module.
 * **0.2.0**:
   * Added support for ellipse and polygon regions.
   * Rotation of drawings is now taken into account.
