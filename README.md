@@ -31,37 +31,46 @@ Remember to enable the module in `Manage Modules` menu after installation.
 * You can have more than one target region with the same identifier: tokens in the source region(s) get mirrored to all of them.
 * You can have more than one source region with the same identifier: tokens from all of them get mirrored to the targets.
 * Source and target regions can be on the same scene or different.
-* You can use the polygon tool to make more complex region shapes. You move and rotate them freely without messing anything up.
+* You can use the polygon tool to make region with more complicated shapes. You can move and rotate them freely without messing anything up.
 * If the source and target regions are different sizes, the mirrored copies will get scaled up or down to fit. You probably want the aspect ratios to match though. It's best to start by making two copies of the same drawing.
-* For small regions, you may need to reduce the label font size to allow resizing the drawing. Or, you can add the label after the size is right.
 
 ![Example image](demo/1.gif)
 
 * If you want bidirectional syncing of tokens, you need to create two pairs of linked regions with different identifiers (both a source and a target in each place).
 * Cloned tokens can't be moved or deleted independently. They don't have a linked actor, aren't controlled by a player, and don't have vision. They have an extra tint applied to make them easily distinguishable, which can be changed in the `Module Settings` menu. They inherit most other properties (hidden, size, name, disposition, etc) from the original token.
+* By default, when a player targets or detargets a token, they will also target or detarget any clones or originals of that token. You can turn this off in the `Module Settings` menu if it interferes with anything.
 
 ## Creating teleports
 
 Teleports work with marked regions just like the cloning system. The only difference is you need to label drawings with `@in:XXX` for a teleport starting area, `@out:XXX` for a destination area, or `@inout:XXX` for a two-way area.
 
 Any token that moves into an `@in` or `@inout` region will be moved to the corresponding
-`@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene. (Non-GM owners of the token will get pulled if the token teleports to another scene.)
+`@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene. (Non-GM owners of the token will get pulled to the new scene if the token teleports to a different one.)
 
 ![Example animation](demo/2.gif)
+
+In the `Module Settings` menu you can choose whether a teleport to the same scene will animate the token or move it instantly to the destination.
+
+## Advanced options
+
+* Region identifiers that start with `!` are _scene-local_: they will only match with other regions on the same scene. For example, a region with the label `@in:!bar` will only teleport to a region labeled `@out:!bar` on the same scene, even if another scene also has a region labelled `@out:!bar`. The same behaviour applies to cloned regions. This might be useful if you don't need cross-scene linking, and don't want to worry about making sure you use different identifiers on each scene. Or if you're going to duplicate a scene a whole bunch.
 
 ## Troubleshooting
 
 * Drawings need to have been _created_ by a user with the `GAMEMASTER` role in order to function as linked regions.
+* For small regions, you may need to reduce the label font size to allow resizing the drawing. Or, you can add the label after the size is right.
 * The module needs a Gamemaster logged in to function properly, since it works by tracking changes on the GM's client and issuing commands with GM permissions in the background to manipulate tokens. If tokens get out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens.
 * Note the above point means performance impact should be low, because all the complicated logic runs only on the GM's client. Other clients only have to deal with the resulting automated token updates.
+* If something still isn't working you can file an issue here or reach me at `grand#5298` on the discord.
 
 # Version history
 
-* **Next**:
-  * Animate tokens option.
-  * Auto-target sync option.
-  * `!` prefix to restrict to local only.
-  * Fixed compatibility issue with mssing actor ID on tokens.
+* **0.3.0**:
+  * Added a module setting to animate token movement when teleporting to the scene same, default off.
+  * Added a module setting to synchronize targeting between original and cloned tokens, default on.
+  * Region identifiers that start with `!` are now scene-local and won't match with regions on other scenes.
+  * Editing a cloned token via the token configuration menu will now edit the original token rather than silently discarding the update.
+  * Fixed compatibility issue with missing actor ID on cloned tokens, affecting at least the Token Mold module.
 * **0.2.0**:
   * Added support for ellipse and polygon regions.
   * Rotation of drawings is now taken into account.

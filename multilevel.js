@@ -162,6 +162,11 @@ class MultilevelTokens {
         : scene;
   }
 
+  _getSourceTokenForReplicatedToken(scene, token) {
+    const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
+    return sourceScene && sourceScene.data.tokens.find(t => t._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
+  }
+
   _isInvalidReplicatedToken(scene, token) {
     if (!scene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
       return true;
@@ -626,7 +631,21 @@ class MultilevelTokens {
   }
 
   _onPreUpdateToken(scene, token, update, options, userId) {
-    return this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token);
+    if (this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token)) {
+      return true;
+    }
+    // Attempt to update replicated token.
+    if ('x' in update || 'y' in update || 'rotation' in update) {
+      return false;
+    }
+    const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
+    const sourceToken = this._getSourceTokenForReplicatedToken(scene, token);
+    if (sourceScene && sourceToken) {
+      const newUpdate = duplicate(update);
+      newUpdate._id = sourceToken._id;
+      sourceScene.updateEmbeddedEntity(Token.embeddedName, newUpdate, options);
+    }
+    return false;
   }
 
   _onUpdateToken(scene, token, update, options, userId) {
