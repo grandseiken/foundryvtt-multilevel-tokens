@@ -1,12 +1,16 @@
 const MLT = {
   SCOPE: "multilevel-tokens",
   SETTING_TINT_COLOR: "tintcolor",
+  SETTING_ANIMATE_TELEPORTS: "animateteleports",
+  SETTING_AUTO_TARGET: "autotarget",
+  SETTING_AUTO_CHAT_BUBBLE: "autochatbubble",
   DEFAULT_TINT_COLOR: "#808080",
   TAG_SOURCE: "@source:",
   TAG_TARGET: "@target:",
   TAG_IN: "@in:",
   TAG_OUT: "@out:",
   TAG_INOUT: "@inout:",
+  TAG_LOCAL_PREFIX: "!",
   FLAG_SOURCE_SCENE: "sscene",
   FLAG_SOURCE_TOKEN: "stoken",
   FLAG_SOURCE_REGION: "srect",
@@ -24,8 +28,8 @@ class MltRequestBatch {
     this._scene(scene).create.push(data);
   }
 
-  updateToken(scene, data) {
-    this._scene(scene).update.push(data);
+  updateToken(scene, data, animate=true) {
+    (animate ? this._scene(scene).updateAnimated : this._scene(scene).updateInstant).push(data);
   }
 
   deleteToken(scene, id) {
@@ -38,7 +42,11 @@ class MltRequestBatch {
 
   _scene(scene) {
     if (!(scene._id in this._scenes)) {
-      this._scenes[scene._id] = {create: [], update: [], delete: []};
+      this._scenes[scene._id] = {
+        create: [],
+        updateAnimated: [],
+        updateInstant: [],
+        delete: []};
     }
     return this._scenes[scene._id];
   }
@@ -55,6 +63,30 @@ class MultilevelTokens {
       default: MLT.DEFAULT_TINT_COLOR,
       onChange: this.refreshAll.bind(this),
     });
+    game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_TARGET, {
+      name: "Auto-sync player targets",
+      hint: "If checked, targeting or detargeting a token will also target or detarget its clones (or originals). Turn this off if it interferes with things.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true
+    });
+    game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_CHAT_BUBBLE, {
+      name: "Auto-sync chat bubbles",
+      hint: "If checked, chat bubbles for a token will also be shown on its clones (or originals).",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true
+    });
+    game.settings.register(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS, {
+      name: "Animate teleports",
+      hint: "If checked, tokens teleporting to the same scene will move to the new location with an animation rather than instantly.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: false
+    });
     Hooks.on("ready", this._onReady.bind(this));
     Hooks.on("createScene", this.refreshAll.bind(this));
     Hooks.on("deleteScene", this.refreshAll.bind(this));
@@ -68,6 +100,9 @@ class MultilevelTokens {
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
     Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
+    Hooks.on("targetToken", this._onTargetToken.bind(this));
+    Hooks.on("preCreateCombatant", this._onPreCreateCombatant.bind(this));
+    Hooks.on("createChatMessage", this._onCreateChatMessage.bind(this));
     this._lastTeleport = {};
     this._asyncQueue = null;
     this._asyncCount = 0;
@@ -132,13 +167,38 @@ class MultilevelTokens {
     return token.flags && (MLT.SCOPE in token.flags) && (MLT.FLAG_SOURCE_TOKEN in token.flags[MLT.SCOPE]);
   }
 
+  _getSourceSceneForReplicatedToken(scene, token) {
+    return (MLT.FLAG_SOURCE_SCENE in token.flags[MLT.SCOPE])
+        ? game.scenes.get(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE])
+        : scene;
+  }
+
+  _getSourceTokenForReplicatedToken(scene, token) {
+    const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
+    return sourceScene && sourceScene.data.tokens.find(t => t._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
+  }
+
+  _getAllLinkedCanvasTokens(token) {
+    return canvas.tokens.placeables.filter(t => {
+      if (this._isReplicatedToken(token)) {
+        return this._isReplicatedToken(t.data)
+            ? t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] &&
+              t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]
+            : !(MLT.FLAG_SOURCE_SCENE in token.flags[MLT.SCOPE]) &&
+            token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === t.data._id;
+      } else {
+        return this._isReplicatedToken(t.data) &&
+            !(MLT.FLAG_SOURCE_SCENE in t.data.flags[MLT.SCOPE]) &&
+            t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token._id;
+      }
+    });
+  }
+
   _isInvalidReplicatedToken(scene, token) {
     if (!scene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
       return true;
     }
-    const sourceScene = (MLT.FLAG_SOURCE_SCENE in token.flags[MLT.SCOPE])
-        ? game.scenes.get(token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE])
-        : scene;
+    const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
     if (!sourceScene) {
       return false;
     }
@@ -254,7 +314,7 @@ class MultilevelTokens {
 
     const data = duplicate(token);
     delete data._id;
-    delete data.actorId;
+    data.actorId = "";
     data.actorLink = false;
     data.vision = false;
     data.x = targetPosition.x;
@@ -285,11 +345,16 @@ class MultilevelTokens {
     if (!id) {
       return [];
     }
+    const tagMatch = resultTags.constructor === Array
+        ? drawing => resultTags.some(t => this._getRegionTag(drawing, t) === id)
+        : drawing => this._getRegionTag(drawing, resultTags) === id;
+    if (id.startsWith(MLT.TAG_LOCAL_PREFIX)) {
+      return scene.data.drawings
+          .filter(d => d._id !== region._id && tagMatch(d))
+          .map(result => [region, scene, result]);
+    }
     return game.scenes.map(resultScene => resultScene.data.drawings
-        .filter(drawing => (drawing._id !== region._id || scene !== resultScene) &&
-            (resultTags.constructor === Array
-                ? resultTags.some(t => this._getRegionTag(drawing, t) === id)
-                : this._getRegionTag(drawing, resultTags) === id))
+        .filter(d => (d._id !== region._id || scene !== resultScene) && tagMatch(d))
         .map(result => [region, resultScene, result])
     ).flat();
   }
@@ -309,7 +374,9 @@ class MultilevelTokens {
   }
 
   _getReplicatedTokensForRegion(scene, region) {
-    const scenes = this._isTaggedRegion(region, MLT.TAG_TARGET) ? [scene] : game.scenes;
+    const sourceTag = this._getRegionTag(region, MLT.TAG_SOURCE);
+    const scenes = (sourceTag && sourceTag.startsWith(MLT.TAG_LOCAL_PREFIX)) ||
+        this._isTaggedRegion(region, MLT.TAG_TARGET) ? [scene] : game.scenes;
     return scenes.map(s => s.data.tokens
         .filter(token => this._isReplicatedToken(token) &&
                          this._isReplicationForRegion(scene, region, s, token))
@@ -417,11 +484,24 @@ class MultilevelTokens {
     for (const [sceneId, data] of Object.entries(requestBatch._scenes)) {
       const scene = game.scenes.get(sceneId);
       if (scene && data.delete.length) {
+        // Also remove from combats.
+        for (const combat of game.combats.entities) {
+          if (combat.scene === scene) {
+            const combatants = data.delete.map(id => combat.getCombatantByToken(id)).flatMap(c => c ? [c._id] : []);
+            if (combatants.length) {
+              promise = promise.then(() => combat.deleteEmbeddedEntity("Combatant", combatants));
+            }
+          }
+        }
         promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
       }
-      if (scene && data.update.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.update,
+      if (scene && data.updateAnimated.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateAnimated,
                                                                 Object.assign({diff: true}, options)));
+      }
+      if (scene && data.updateInstant.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateInstant,
+                                                                Object.assign({diff: true, animate: false}, options)));
       }
       if (scene && data.create.length) {
         promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, options));
@@ -510,12 +590,14 @@ class MultilevelTokens {
 
     const outRegion = outRegions[Math.floor(outRegions.length * Math.random())];
     const position = this._mapTokenPosition(scene, token, inRegion, outRegion[1], outRegion[2]);
+    // TODO: wait for animation to complete before teleporting, if possible?
     if (outRegion[1] === scene) {
+      const animate = game.settings.get(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS) || false;
       this._queueAsync(requestBatch => requestBatch.updateToken(scene, {
         _id: token._id,
         x: position.x,
         y: position.y,
-      }));
+      }, animate));
     } else {
       const data = duplicate(token);
       delete data._id;
@@ -585,10 +667,35 @@ class MultilevelTokens {
   }
 
   _onPreUpdateToken(scene, token, update, options, userId) {
-    return this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token);
+    if (this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token)) {
+      return true;
+    }
+    // Attempt to update replicated token.
+    if ('x' in update || 'y' in update || 'rotation' in update) {
+      return false;
+    }
+    const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
+    const sourceToken = this._getSourceTokenForReplicatedToken(scene, token);
+    if (sourceScene && sourceToken) {
+      const newUpdate = duplicate(update);
+      newUpdate._id = sourceToken._id;
+      sourceScene.updateEmbeddedEntity(Token.embeddedName, newUpdate, options);
+    }
+    return false;
   }
 
   _onUpdateToken(scene, token, update, options, userId) {
+    if (MLT.REPLICATED_UPDATE in options && "animate" in options && !options.animate &&
+        ('x' in update || 'y' in update)) {
+      // Workaround for issues with a non-animated position update on a token that is already animating.
+      const canvasToken = canvas.tokens.placeables.find(t => t.id === token._id);
+      if (canvasToken && canvasToken._movement) {
+        canvasToken._movement = null;
+        canvasToken.stopAnimation();
+        canvasToken._onUpdate({x: token.x, y: token.y}, {animate: false});
+        canvas.triggerPendingOperations();
+      }
+    }
     if (!this._isReplicatedToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._updateAllReplicatedTokens(requestBatch, scene, t));
@@ -610,6 +717,58 @@ class MultilevelTokens {
       this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, scene, t));
       delete this._lastTeleport[token._id];
     }
+  }
+
+  _onTargetToken(user, token, targeted) {
+    // Auto-targetting handled on user's client, since targetting is scene-local.
+    if (user !== game.user || !game.settings.get(MLT.SCOPE, MLT.SETTING_AUTO_TARGET)) {
+      return;
+    }
+    this._getAllLinkedCanvasTokens(token.data).forEach(t => {
+      if (t !== token && targeted !== user.targets.has(t)) {
+        t.setTarget(targeted, {releaseOthers: false, groupSelection: true});
+      }
+    });
+  }
+
+  _onPreCreateCombatant(combat, combatant, options, userId) {
+    const token = combat.scene.data.tokens.find(t => t._id === combatant.tokenId);
+    if (!token || !this._isReplicatedToken(token)) {
+      return true;
+    }
+    const sourceScene = this._getSourceSceneForReplicatedToken(combat.scene, token);
+    if (sourceScene !== combat.scene) {
+      return true;
+    }
+    const sourceToken = this._getSourceTokenForReplicatedToken(combat.scene, token);
+    if (sourceToken) {
+      const activeCombatant = combat.getCombatantByToken(sourceToken._id);
+      if (activeCombatant) {
+        combat.deleteEmbeddedEntity("Combatant", activeCombatant._id);
+      } else {
+        combat.createEmbeddedEntity("Combatant", { tokenId: sourceToken._id, hidden: sourceToken.hidden});
+      }
+    }
+    return false;
+  }
+
+  _onCreateChatMessage(message, options, userId) {
+    if (!options.chatBubble || !canvas.ready || !game.settings.get(MLT.SCOPE, MLT.SETTING_AUTO_CHAT_BUBBLE)) {
+      return;
+    }
+    const scene = game.scenes.get(message.data.speaker.scene);
+    if (!scene) {
+      return;
+    }
+    const token = scene.data.tokens.find(t => t._id === message.data.speaker.token);
+    if (!token) {
+      return;
+    }
+    this._getAllLinkedCanvasTokens(token).forEach(t => {
+      if (t.scene !== scene || t.data._id !== token._id) {
+        canvas.hud.bubbles.say(t, message.data.content, {emote: message.data.type === CONST.CHAT_MESSAGE_TYPES_EMOTE});
+      }
+    })
   }
 }
 
