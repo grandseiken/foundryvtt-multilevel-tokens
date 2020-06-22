@@ -3,6 +3,7 @@ const MLT = {
   SETTING_TINT_COLOR: "tintcolor",
   SETTING_ANIMATE_TELEPORTS: "animateteleports",
   SETTING_AUTO_TARGET: "autotarget",
+  SETTING_AUTO_CHAT_BUBBLE: "autochatbubble",
   DEFAULT_TINT_COLOR: "#808080",
   TAG_SOURCE: "@source:",
   TAG_TARGET: "@target:",
@@ -63,8 +64,16 @@ class MultilevelTokens {
       onChange: this.refreshAll.bind(this),
     });
     game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_TARGET, {
-      name: "Auto-target sync",
+      name: "Auto-sync player targets",
       hint: "If checked, targeting or detargeting a token will also target or detarget its clones (or originals). Turn this off if it interferes with things.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true
+    });
+    game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_CHAT_BUBBLE, {
+      name: "Auto-sync chat bubbles",
+      hint: "If checked, chat bubbles for a token will also be shown on its clones (or originals).",
       scope: "world",
       config: true,
       type: Boolean,
@@ -93,6 +102,7 @@ class MultilevelTokens {
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
     Hooks.on("targetToken", this._onTargetToken.bind(this));
     Hooks.on("preCreateCombatant", this._onPreCreateCombatant.bind(this));
+    Hooks.on("createChatMessage", this._onCreateChatMessage.bind(this));
     this._lastTeleport = {};
     this._asyncQueue = null;
     this._asyncCount = 0;
@@ -166,6 +176,22 @@ class MultilevelTokens {
   _getSourceTokenForReplicatedToken(scene, token) {
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
     return sourceScene && sourceScene.data.tokens.find(t => t._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
+  }
+
+  _getAllLinkedCanvasTokens(token) {
+    return canvas.tokens.placeables.filter(t => {
+      if (this._isReplicatedToken(token)) {
+        return this._isReplicatedToken(t.data)
+            ? t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] &&
+              t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]
+            : !(MLT.FLAG_SOURCE_SCENE in token.flags[MLT.SCOPE]) &&
+            token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === t.data._id;
+      } else {
+        return this._isReplicatedToken(t.data) &&
+            !(MLT.FLAG_SOURCE_SCENE in t.data.flags[MLT.SCOPE]) &&
+            t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token._id;
+      }
+    });
   }
 
   _isInvalidReplicatedToken(scene, token) {
@@ -698,24 +724,8 @@ class MultilevelTokens {
     if (user !== game.user || !game.settings.get(MLT.SCOPE, MLT.SETTING_AUTO_TARGET)) {
       return;
     }
-    const isReplicated = this._isReplicatedToken(token.data);
-    canvas.tokens.placeables.forEach(t => {
-      if (t === token) {
-        return;
-      }
-      let isLinked = false;
-      if (isReplicated) {
-        isLinked = this._isReplicatedToken(t.data)
-            ? t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === token.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] &&
-              t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]
-            : !(MLT.FLAG_SOURCE_SCENE in token.data.flags[MLT.SCOPE]) &&
-              token.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === t.data._id;
-      } else {
-        isLinked = this._isReplicatedToken(t.data) &&
-            !(MLT.FLAG_SOURCE_SCENE in t.data.flags[MLT.SCOPE]) &&
-            t.data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === token.data._id;
-      }
-      if (isLinked && targeted !== user.targets.has(t)) {
+    this._getAllLinkedCanvasTokens(token.data).forEach(t => {
+      if (t !== token && targeted !== user.targets.has(t)) {
         t.setTarget(targeted, {releaseOthers: false, groupSelection: true});
       }
     });
@@ -740,6 +750,25 @@ class MultilevelTokens {
       }
     }
     return false;
+  }
+
+  _onCreateChatMessage(message, options, userId) {
+    if (!options.chatBubble || !canvas.ready || !game.settings.get(MLT.SCOPE, MLT.SETTING_AUTO_CHAT_BUBBLE)) {
+      return;
+    }
+    const scene = game.scenes.get(message.data.speaker.scene);
+    if (!scene) {
+      return;
+    }
+    const token = scene.data.tokens.find(t => t._id === message.data.speaker.token);
+    if (!token) {
+      return;
+    }
+    this._getAllLinkedCanvasTokens(token).forEach(t => {
+      if (t.scene !== scene || t.data._id !== token._id) {
+        canvas.hud.bubbles.say(t, message.data.content, {emote: message.data.type === CONST.CHAT_MESSAGE_TYPES_EMOTE});
+      }
+    })
   }
 }
 
