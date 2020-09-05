@@ -41,26 +41,29 @@ Remember to enable the module in `Manage Modules` menu after installation.
 * By default, when a player targets or detargets a token, they will also target or detarget any clones or originals of that token. You can turn this off in the `Module Settings` menu if it interferes with anything. Similarly, adding a cloned token to combat will add the original copy to combat instead, as long as it's on the same scene.
 * Chat bubbles (if enabled) will be shown on each copy of a token. This can be turned off in the `Module Settings` menu.
 
-## Creating teleports
+## Creating teleport regions
 
 Teleports work with marked regions just like the cloning system. The only difference is you need to label drawings with `@in:XXX` for a teleport starting area, `@out:XXX` for a destination area, or `@inout:XXX` for a two-way area.
 
-Any token that moves into an `@in` or `@inout` region will be moved to the corresponding
-`@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene. (Non-GM owners of the token will get pulled to the new scene if the token teleports to a different one.)
+Any token that moves into an `@in` or `@inout` region will be moved to the corresponding `@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene. Non-GM owners of the token will get pulled to the new scene if the token teleports to a different one.
 
 ![Example animation](demo/2.gif)
 
 In the `Module Settings` menu you can choose whether a teleport to the same scene will animate the token or move it instantly to the destination.
 
-## Creating floors
+## Creating level-based teleports
 
-Floor regions, specified with an `@floor:<number>` label, allow tokens to teleport between numerically adjacent floors.
+_Level_ regions provide an alternative way to set up teleports, rather than using `@in` / `@out` / `@inout` regions. This method is a little bit less flexible and does not support cross-scene teleporting, but can be faster and more convenient to set up in some cases. It works well for large maps with many small pairs of teleportation points (e.g. staircases or ladders) between adjacent floors of a building.
 
-Upon entering the space of a token named "Stairs," a token will be moved to a corresponding "Stairs" token on the floor one above or one below it (should those floors and tokens exist). This provides an accelerated workflow for populating large maps with many small, paired teleportation regions; most often staircases or ladders.
-
-Note that pixel-precise placement of each pair of "Stairs" tokens is required in order to link them together, therefore grid snapping is mandatory. In addition, movement by `@in` and `@inout` regions takes priority over movement by `@floor` regions, should the regions overlap.
+* First, create regions marking out the different levels of your structure and label each one with the text `@level:N`, where `N` is the level number.
+* Mark each stairway entrance / exit on each level with a token with the name `@stairs`. You can set up an actor for this purpose. You probably want to make them invisible.
+* When a token moves on top of a `@stairs` token, it will be teleported to any corresponding `@stairs` token at the same relative position one level above or below, if one exists.
 
 ![Example animation](demo/3.gif)
+
+Note that careful placement of these regions and tokens is necessary in order to link stairs together: tokens will teleport only between stairs that have identical relative positions within numerically-adjacent `@level` regions. It's therefore recommended to make the `@level` regions exactly the same size and enable snap-to-grid.
+
+You can use both methods of teleportation in combination. Movement by `@in` and `@inout` regions takes priority over movement by `@stairs` tokens and `@level` regions, should the regions overlap.
 
 ## Advanced options
 
@@ -77,9 +80,7 @@ Note that pixel-precise placement of each pair of "Stairs" tokens is required in
 # Version history
 
 * **0.4.0**:
-  * Added `@floor` regions.
-  * In-progress token movement animations are now cancelled prior to teleporting, preventing some cases of token position desync.
-  * Fixed rare case where a batch of token operations could fail to complete due to a client disconnect, blocking further operations from being carried out.
+  * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
 * **0.3.0**:
   * Added a module setting to animate token movement when teleporting to the scene same, default off.
   * Added a module setting to also show chat bubbles on each copy of a token, default on.
