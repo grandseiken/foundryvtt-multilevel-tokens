@@ -52,6 +52,16 @@ Any token that moves into an `@in` or `@inout` region will be moved to the corre
 
 In the `Module Settings` menu you can choose whether a teleport to the same scene will animate the token or move it instantly to the destination.
 
+## Creating floors
+
+Floor regions, specified with an `@floor:<number>` label, allow tokens to teleport between numerically adjacent floors.
+
+Upon entering the space of a token named "Stairs," a token will be moved to a corresponding "Stairs" token on the floor one above or one below it (should those floors and tokens exist). This provides an accelerated workflow for populating large maps with many small, paired teleportation regions; most often staircases or ladders.
+
+Note that pixel-precise placement of each pair of "Stairs" tokens is required in order to link them together, therefore grid snapping is mandatory. In addition, movement by `@in` and `@inout` regions takes priority over movement by `@floor` regions, should the regions overlap.
+
+![Example animation](demo/3.gif)
+
 ## Advanced options
 
 * Region identifiers that start with `!` are _scene-local_: they will only match with other regions on the same scene. For example, a region with the label `@in:!bar` will only teleport to a region labeled `@out:!bar` on the same scene, even if another scene also has a region labelled `@out:!bar`. The same behaviour applies to cloned regions. This might be useful if you don't need cross-scene linking, and don't want to worry about making sure you use different identifiers on each scene. Or if you're going to duplicate a scene a whole bunch.
@@ -66,6 +76,10 @@ In the `Module Settings` menu you can choose whether a teleport to the same scen
 
 # Version history
 
+* **0.4.0**:
+  * Added `@floor` regions.
+  * In-progress token movement animations are now cancelled prior to teleporting, preventing some cases of token position desync.
+  * Fixed rare case where a batch of token operations could fail to complete due to a client disconnect, blocking further operations from being carried out.
 * **0.3.0**:
   * Added a module setting to animate token movement when teleporting to the scene same, default off.
   * Added a module setting to also show chat bubbles on each copy of a token, default on.
