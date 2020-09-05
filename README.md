@@ -81,6 +81,7 @@ You can use both methods of teleportation in combination. Movement by `@in` and 
 
 * **0.4.0**:
   * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
+  * Fixed that marked regions would not function when imported as part of scene data using Foundry's scene import / export feature.
 * **0.3.0**:
   * Added a module setting to animate token movement when teleporting to the scene same, default off.
   * Added a module setting to also show chat bubbles on each copy of a token, default on.

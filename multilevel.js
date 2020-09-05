@@ -35,6 +35,10 @@ class MltRequestBatch {
     (animate ? this._scene(scene).updateAnimated : this._scene(scene).updateInstant).push(data);
   }
 
+  updateDrawing(scene, data) {
+    this._scene(scene).updateDrawing.push(data);
+  }
+
   deleteToken(scene, id) {
     this._scene(scene).delete.push(id);
   }
@@ -49,6 +53,7 @@ class MltRequestBatch {
         create: [],
         updateAnimated: [],
         updateInstant: [],
+        updateDrawing: [],
         delete: []};
     }
     return this._scenes[scene._id];
@@ -92,6 +97,7 @@ class MultilevelTokens {
     });
     Hooks.on("ready", this._onReady.bind(this));
     Hooks.on("createScene", this.refreshAll.bind(this));
+    Hooks.on("updateScene", this._onUpdateScene.bind(this));
     Hooks.on("deleteScene", this.refreshAll.bind(this));
     Hooks.on("createDrawing", this._onCreateDrawing.bind(this));
     Hooks.on("preUpdateDrawing", this._onPreUpdateDrawing.bind(this));
@@ -538,6 +544,10 @@ class MultilevelTokens {
         promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateInstant,
                                                                 Object.assign({diff: true, animate: false}, options)));
       }
+      if (scene && data.updateDrawing.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Drawing.embeddedName, data.updateDrawing,
+                                                                Object.assign({diff: true}, options)));
+      }
       if (scene && data.create.length) {
         promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, options));
       }
@@ -577,6 +587,9 @@ class MultilevelTokens {
   }
 
   refreshAll() {
+    if (!this._isPrimaryGamemaster()) {
+      return;
+    }
     console.log(MLT.LOG_PREFIX, "Refreshing all");
     this._queueAsync(requestBatch => {
       game.scenes.forEach(scene => {
@@ -711,6 +724,23 @@ class MultilevelTokens {
     if (this._isOnlyGamemaster()) {
       this.refreshAll();
     }
+  }
+
+  _onUpdateScene(scene) {
+    if (this._isPrimaryGamemaster()) {
+      // Workaround for issue where imported scene contains drawings whose author is an invalid user ID.
+      // Can assume a GM took the import action and update to use their ID instead.
+      this._queueAsync(requestBatch => {
+        scene.data.drawings.filter(d => !game.users.find(u => u.id === d.author)).forEach(d => {
+          requestBatch.updateDrawing(scene, {
+            _id: d._id,
+            author: game.user.id,
+          });
+        });
+      });
+    }
+    this.refreshAll();
+    return true;
   }
 
   _onCreateDrawing(scene, drawing, options, userId) {
