@@ -12,6 +12,7 @@ const MLT = {
   TAG_OUT: "@out:",
   TAG_INOUT: "@inout:",
   TAG_LEVEL: "@level:",
+  TAG_MACRO: "@macro:",
   TAG_LOCAL_PREFIX: "!",
   FLAG_SOURCE_SCENE: "sscene",
   FLAG_SOURCE_TOKEN: "stoken",
@@ -122,8 +123,11 @@ class MultilevelTokens {
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
     Hooks.on("targetToken", this._onTargetToken.bind(this));
     Hooks.on("preCreateCombatant", this._onPreCreateCombatant.bind(this));
+    Hooks.on("chatMessage", this._onChatMessage.bind(this));
     Hooks.on("createChatMessage", this._onCreateChatMessage.bind(this));
     this._lastTeleport = {};
+    this._lastMacro = {};
+    this._chatMacroSpeaker = null;
     this._asyncQueue = null;
     this._asyncCount = 0;
     console.log(MLT.LOG_PREFIX, "Initialized");
@@ -624,6 +628,52 @@ class MultilevelTokens {
     }
   }
 
+  _doMacros(scene, token) {
+    if (!game.user.isGM) {
+      return;
+    }
+    const macroRegions = this._getTaggedRegionsContainingToken(scene, token, [MLT.TAG_MACRO]);
+    const enteredMacroRegions = macroRegions.filter(r => !this._lastMacro[token._id].includes(r._id));
+    this._lastMacro[token._id] = macroRegions.map(r => r._id);
+    if (!this._isPrimaryGamemaster()) {
+      return false;
+    }
+    for (const region of enteredMacroRegions) {
+      const macroName = this._getRegionTag(region, MLT.TAG_MACRO);
+      const macro = game.macros.find(m => m.name === macroName && this._isUserGamemaster(m.data.author));
+      if (!macro) {
+        continue;
+      }
+
+      if (macro.data.type === "chat") {
+        this._chatMacroSpeaker = {
+          scene: scene._id,
+          actor: token.actorId,
+          token: token._id,
+          alias: token.name,
+        };
+        ui.chat.processMessage(macro.data.command).catch(err => {
+          ui.notifications.error("There was an error in your chat message syntax.");
+          console.error(err);
+        });
+        this._chatMacroSpeaker = null;
+      } else if (macro.data.type === "script") {
+        const outerToken = token;
+        const outerRegion = region;
+        {
+          const token = canvas.tokens.get(outerToken._id) || new Token(outerToken);
+          const region = canvas.drawings.get(outerRegion._id) || new Drawing(outerRegion);
+          try {
+            eval(macro.data.command);
+          } catch (err) {
+            ui.notifications.error(`There was an error in your macro syntax. See the console (F12) for details`);
+            console.error(err);
+          }
+        }
+      }
+    }
+  }
+
   // Teleport using standard teleport regions. Returns true if a teleport occurred, false otherwise.
   _doTeleport(scene, token) {
     if (!this._isPrimaryGamemaster()) {
@@ -834,6 +884,7 @@ class MultilevelTokens {
     if (this._isProperToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._updateAllReplicatedTokens(requestBatch, scene, t));
+      this._doMacros(scene, token);
       if (MLT.REPLICATED_UPDATE in options) {
         this._setLastTeleport(scene, token);
       } else {
@@ -851,6 +902,7 @@ class MultilevelTokens {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, scene, t));
       delete this._lastTeleport[token._id];
+      delete this._lastMacro[token._id];
     }
   }
 
@@ -885,6 +937,14 @@ class MultilevelTokens {
       }
     }
     return false;
+  }
+
+  _onChatMessage(chatLog, message, chatData) {
+    if (this._chatMacroSpeaker) {
+      chatData.speaker = this._chatMacroSpeaker;
+      this._chatMacroSpeaker = null;
+    }
+    return true;
   }
 
   _onCreateChatMessage(message, options, userId) {

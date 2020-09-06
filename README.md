@@ -10,7 +10,9 @@ For example, if a source region is a part of a lower floor, and its target regio
 
 You could probably also use this functionality for other interesting things, like crystal balls, or who knows.
 
-As a bonus, since multi-level maps often need a way to travel between the floors, this module also supports simple teleports using a similar mechanism.
+This module also has a few other bonus features:
+* since multi-level maps often need a way to travel between the floors, simple teleports can be set up using a similar region-based mechanism.
+* you can also create regions that will execute a macro when a token enters.
 
 # Installation
 
@@ -65,9 +67,21 @@ Note that careful placement of these regions and tokens is necessary in order to
 
 You can use both methods of teleportation in combination. Movement by `@in` and `@inout` regions takes priority over movement by `@stairs` tokens and `@level` regions, should the regions overlap.
 
+## Macro regions
+
+You can run a specific macro whenever a token enters a particular area using _macro_ regions. These work similarly to other region types, but need to be labelled with the text `@macro:NAME`, where `NAME` is the name of a macro you've created. The macro must have been created by a GM user.
+
+* Chat macros will be spoken as if by whichever token entered the region.
+* Script macros will be executed by the GM whenever a token enters the region. The macro command can make use of the following variables:
+  * `scene`: the `Scene` object containing the token and region.
+  * `region`: a `Drawing` object describing the region which was entered.
+  * `token`: a `Token` object for the token which entered the region.
+
+  Note that script macros triggered in this way run on the GM's client, and the GM might not currently be viewing the scene in question. In this case, the `Drawing` and `Token` objects described above will be temporary objects created purely for the macro's execution, rather than the currently-visible ones found in `canvas.tokens` and `canvas.drawings`.
+
 ## Advanced options
 
-* Region identifiers that start with `!` are _scene-local_: they will only match with other regions on the same scene. For example, a region with the label `@in:!bar` will only teleport to a region labeled `@out:!bar` on the same scene, even if another scene also has a region labelled `@out:!bar`. The same behaviour applies to cloned regions. This might be useful if you don't need cross-scene linking, and don't want to worry about making sure you use different identifiers on each scene. Or if you're going to duplicate a scene a whole bunch.
+* Region identifiers that start with `!` are _scene-local_: they will only match with other regions on the same scene. For example, a region with the label `@in:!bar` will only teleport to a region labelled `@out:!bar` on the same scene, even if another scene also has a region labelled `@out:!bar`. The same behaviour applies to cloned regions. This might be useful if you don't need cross-scene linking, and don't want to worry about making sure you use different identifiers on each scene. Or if you're going to duplicate a scene a whole bunch.
 
 ## Troubleshooting
 
@@ -82,6 +96,7 @@ You can use both methods of teleportation in combination. Movement by `@in` and 
 
 * **0.4.0**:
   * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
+  * Added a way to trigger macros using `@macro` regions.
   * Added a module setting to copy flags set by other modules when cloning tokens, to aid compatibility, default on.
   * Fixed an issue that could result in tokens being duplicated when teleporting between scenes.
   * Fixed that marked regions would not function when imported as part of scene data using Foundry's scene import / export feature.
