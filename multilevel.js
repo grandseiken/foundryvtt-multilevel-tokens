@@ -4,6 +4,7 @@ const MLT = {
   SETTING_ANIMATE_TELEPORTS: "animateteleports",
   SETTING_AUTO_TARGET: "autotarget",
   SETTING_AUTO_CHAT_BUBBLE: "autochatbubble",
+  SETTING_CLONE_MODULE_FLAGS: "clonemoduleflags",
   DEFAULT_TINT_COLOR: "#808080",
   TAG_SOURCE: "@source:",
   TAG_TARGET: "@target:",
@@ -94,6 +95,16 @@ class MultilevelTokens {
       config: true,
       type: Boolean,
       default: false
+    });
+    // TODO: maybe be necessary to decide this on a module-by-module basis. Could provide a way to let the user decide,
+    // and / or just bake in defaults for known cases where it matters.
+    game.settings.register(MLT.SCOPE, MLT.SETTING_CLONE_MODULE_FLAGS, {
+      name: "Clone token flags set by other modules",
+      hint: "Modules can set custom flags on tokens for their own use. If checked, cloned tokens will inherit such flags from the original. Since the purpose of these flags depends on the module in question, I can't tell you what this option will do, but if cloned tokens are interacting poorly with some other module, you can try changing it.",
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true
     });
     Hooks.on("ready", this._onReady.bind(this));
     Hooks.on("createScene", this.refreshAll.bind(this));
@@ -331,6 +342,7 @@ class MultilevelTokens {
     for (let i = 0; i < multRgb.length; ++i) {
       tintRgb[i] *= multRgb[i];
     }
+    const cloneModuleFlags = game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_MODULE_FLAGS) || false;
 
     const data = duplicate(token);
     delete data._id;
@@ -342,7 +354,9 @@ class MultilevelTokens {
     data.scale = data.scale ? data.scale * targetScaleFactor : targetScaleFactor;
     data.rotation += targetRegion.rotation - sourceRegion.rotation;
     data.tint = "#" + rgbToHex(tintRgb).toString(16);
-    data.flags = {};
+    if (!data.flags || !cloneModuleFlags) {
+      data.flags = {};
+    }
     data.flags[MLT.SCOPE] = {};
     if (sourceScene !== targetScene) {
       data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] = sourceScene._id;

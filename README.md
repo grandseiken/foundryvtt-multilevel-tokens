@@ -82,6 +82,7 @@ You can use both methods of teleportation in combination. Movement by `@in` and 
 
 * **0.4.0**:
   * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
+  * Added a module setting to copy flags set by other modules when cloning tokens, to aid compatibility, default on.
   * Fixed an issue that could result in tokens being duplicated when teleporting between scenes.
   * Fixed that marked regions would not function when imported as part of scene data using Foundry's scene import / export feature.
 * **0.3.0**:
