@@ -8,6 +8,6 @@
   "compatibleCoreVersion": "0.6.6",
   "scripts": ["multilevel.js"],
   "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",
-  "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/develop/module.json",
-  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/develop.zip"
+  "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/master/module.json",
+  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v0.4.0.zip"
 }
