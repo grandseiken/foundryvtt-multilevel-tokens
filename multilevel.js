@@ -642,6 +642,7 @@ class MultilevelTokens {
       }, animate));
     } else {
       const data = duplicate(token);
+      const id = data._id;
       delete data._id;
       data.x = position.x;
       data.y = position.y;
@@ -650,7 +651,12 @@ class MultilevelTokens {
       const owners = actor ? game.users.filter(u => !u.isGM && actor.hasPerm(u, "OWNER")) : [];
 
       this._queueAsync(requestBatch => {
-        requestBatch.deleteToken(scene, token._id);
+        if (!scene.data.tokens.find(t => t._id === id)) {
+          // If the token has already gone, don't teleport it. Otherwise we could end up with things like the token getting
+          // duplicated multiple times.
+          return;
+        }
+        requestBatch.deleteToken(scene, id);
         requestBatch.createToken(outRegion[1], data);
         owners.forEach(user => {
           requestBatch.extraAction(() => game.socket.emit("pullToScene", outRegion[1]._id, user._id));

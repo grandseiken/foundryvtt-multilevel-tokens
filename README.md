@@ -75,12 +75,14 @@ You can use both methods of teleportation in combination. Movement by `@in` and 
 * For small regions, you may need to reduce the label font size to allow resizing the drawing. Or, you can add the label after the size is right.
 * The module needs a Gamemaster logged in to function properly, since it works by tracking changes on the GM's client and issuing commands with GM permissions in the background to manipulate tokens. If tokens get out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens.
 * Note the above point means performance impact should be low, because all the complicated logic runs only on the GM's client. Other clients only have to deal with the resulting automated token updates.
+* The module will detect if more than one GM user is logged in, and only run on one of their clients. However, it can't currently detect if a _single_ GM user is logged in via multiple browser sessions, and problems may arise in that case due to the logic executing multiple times.
 * If something still isn't working you can file an issue here or reach me at `grand#5298` on the discord.
 
 # Version history
 
 * **0.4.0**:
   * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
+  * Fixed an issue that could result in tokens being duplicated when teleporting between scenes.
   * Fixed that marked regions would not function when imported as part of scene data using Foundry's scene import / export feature.
 * **0.3.0**:
   * Added a module setting to animate token movement when teleporting to the scene same, default off.
