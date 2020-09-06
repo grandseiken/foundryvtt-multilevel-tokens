@@ -10,7 +10,9 @@ For example, if a source region is a part of a lower floor, and its target regio
 
 You could probably also use this functionality for other interesting things, like crystal balls, or who knows.
 
-As a bonus, since multi-level maps often need a way to travel between the floors, this module also supports simple teleports using a similar mechanism.
+This module also has a few other bonus features:
+* since multi-level maps often need a way to travel between the floors, simple teleports can be set up using a similar region-based mechanism.
+* you can also create regions that will execute a macro when a token enters.
 
 # Installation
 
@@ -41,20 +43,45 @@ Remember to enable the module in `Manage Modules` menu after installation.
 * By default, when a player targets or detargets a token, they will also target or detarget any clones or originals of that token. You can turn this off in the `Module Settings` menu if it interferes with anything. Similarly, adding a cloned token to combat will add the original copy to combat instead, as long as it's on the same scene.
 * Chat bubbles (if enabled) will be shown on each copy of a token. This can be turned off in the `Module Settings` menu.
 
-## Creating teleports
+## Creating teleport regions
 
 Teleports work with marked regions just like the cloning system. The only difference is you need to label drawings with `@in:XXX` for a teleport starting area, `@out:XXX` for a destination area, or `@inout:XXX` for a two-way area.
 
-Any token that moves into an `@in` or `@inout` region will be moved to the corresponding
-`@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene. (Non-GM owners of the token will get pulled to the new scene if the token teleports to a different one.)
+Any token that moves into an `@in` or `@inout` region will be moved to the corresponding `@out` or `@inout` region. If there's more than one such destination region, one will be chosen randomly. The destination can be on a different scene. Non-GM owners of the token will get pulled to the new scene if the token teleports to a different one.
 
 ![Example animation](demo/2.gif)
 
 In the `Module Settings` menu you can choose whether a teleport to the same scene will animate the token or move it instantly to the destination.
 
+## Creating level-based teleports
+
+_Level_ regions provide an alternative way to set up teleports, rather than using `@in` / `@out` / `@inout` regions. This method is a little bit less flexible and does not support cross-scene teleporting, but can be faster and more convenient to set up in some cases. It works well for large maps with many small pairs of teleportation points (e.g. staircases or ladders) between adjacent floors of a building.
+
+* First, create regions marking out the different levels of your structure and label each one with the text `@level:N`, where `N` is the level number.
+* Mark each stairway entrance / exit on each level with a token with the name `@stairs`. You can set up an actor for this purpose. You probably want to make them invisible.
+* When a token moves on top of a `@stairs` token, it will be teleported to any corresponding `@stairs` token at the same relative position one level above or below, if one exists.
+
+![Example animation](demo/3.gif)
+
+Note that careful placement of these regions and tokens is necessary in order to link stairs together: tokens will teleport only between stairs that have identical relative positions within numerically-adjacent `@level` regions. It's therefore recommended to make the `@level` regions exactly the same size and enable snap-to-grid.
+
+You can use both methods of teleportation in combination. Movement by `@in` and `@inout` regions takes priority over movement by `@stairs` tokens and `@level` regions, should the regions overlap.
+
+## Macro regions
+
+You can run a specific macro whenever a token enters a particular area using _macro_ regions. These work similarly to other region types, but need to be labelled with the text `@macro:NAME`, where `NAME` is the name of a macro you've created. The macro must have been created by a GM user.
+
+* Chat macros will be spoken as if by whichever token entered the region.
+* Script macros will be executed by the GM whenever a token enters the region. The macro command can make use of the following variables:
+  * `scene`: the `Scene` object containing the token and region.
+  * `region`: a `Drawing` object describing the region which was entered.
+  * `token`: a `Token` object for the token which entered the region.
+
+  Note that script macros triggered in this way run on the GM's client, and the GM might not currently be viewing the scene in question. In this case, the `Drawing` and `Token` objects described above will be temporary objects created purely for the macro's execution, rather than the currently-visible ones found in `canvas.tokens` and `canvas.drawings`.
+
 ## Advanced options
 
-* Region identifiers that start with `!` are _scene-local_: they will only match with other regions on the same scene. For example, a region with the label `@in:!bar` will only teleport to a region labeled `@out:!bar` on the same scene, even if another scene also has a region labelled `@out:!bar`. The same behaviour applies to cloned regions. This might be useful if you don't need cross-scene linking, and don't want to worry about making sure you use different identifiers on each scene. Or if you're going to duplicate a scene a whole bunch.
+* Region identifiers that start with `!` are _scene-local_: they will only match with other regions on the same scene. For example, a region with the label `@in:!bar` will only teleport to a region labelled `@out:!bar` on the same scene, even if another scene also has a region labelled `@out:!bar`. The same behaviour applies to cloned regions. This might be useful if you don't need cross-scene linking, and don't want to worry about making sure you use different identifiers on each scene. Or if you're going to duplicate a scene a whole bunch.
 
 ## Troubleshooting
 
@@ -62,10 +89,17 @@ In the `Module Settings` menu you can choose whether a teleport to the same scen
 * For small regions, you may need to reduce the label font size to allow resizing the drawing. Or, you can add the label after the size is right.
 * The module needs a Gamemaster logged in to function properly, since it works by tracking changes on the GM's client and issuing commands with GM permissions in the background to manipulate tokens. If tokens get out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens.
 * Note the above point means performance impact should be low, because all the complicated logic runs only on the GM's client. Other clients only have to deal with the resulting automated token updates.
+* The module will detect if more than one GM user is logged in, and only run on one of their clients. However, it can't currently detect if a _single_ GM user is logged in via multiple browser sessions, and problems may arise in that case due to the logic executing multiple times.
 * If something still isn't working you can file an issue here or reach me at `grand#5298` on the discord.
 
 # Version history
 
+* **0.4.0**:
+  * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
+  * Added a way to trigger macros using `@macro` regions.
+  * Added a module setting to copy flags set by other modules when cloning tokens, to aid compatibility, default on.
+  * Fixed an issue that could result in tokens being duplicated when teleporting between scenes.
+  * Fixed that marked regions would not function when imported as part of scene data using Foundry's scene import / export feature.
 * **0.3.0**:
   * Added a module setting to animate token movement when teleporting to the scene same, default off.
   * Added a module setting to also show chat bubbles on each copy of a token, default on.
