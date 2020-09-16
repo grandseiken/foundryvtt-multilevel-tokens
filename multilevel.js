@@ -125,6 +125,7 @@ class MultilevelTokens {
     Hooks.on("preCreateCombatant", this._onPreCreateCombatant.bind(this));
     Hooks.on("chatMessage", this._onChatMessage.bind(this));
     Hooks.on("createChatMessage", this._onCreateChatMessage.bind(this));
+    Hooks.on("renderDrawingConfig", this._onRenderDrawingConfig.bind(this));
     this._lastTeleport = {};
     this._lastMacro = {};
     this._chatMacroSpeaker = null;
@@ -785,6 +786,232 @@ class MultilevelTokens {
     return true;
   }
 
+  _injectDrawingConfigTab(app, html, data) {
+    let flags = {};
+    if (data.object.flags && data.object.flags[MLT.SCOPE]) {
+      flags = data.object.flags[MLT.SCOPE];
+    }
+
+    const tab = `<a class="item" data-tab="multilevel-tokens"><i class="fas fa-building"></i> Multilevel</a>`;
+    const contents = `
+    <div class="tab" data-tab="multilevel-tokens">
+      <p class="notes">Use this Drawing to define a region for automation with Multilevel Tokens.</p>
+      <hr>
+      <h3 class="form-header"><i class="fas fa-random"/></i> Teleports</h3>
+      <p class="notes">Tokens moving into an <b>In</b> region will be teleported to an <b>Out</b> region with a matching identifier.</p>
+      <div class="form-group">
+        <label for="mltIn">In</label>
+        <input type="checkbox" name="mltIn" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltOut">Out</label>
+        <input type="checkbox" name="mltOut" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltTeleportId">Teleport identifier</label>
+        <input type="text" name="mltTeleportId" data-dtype="String"/>
+      </div>
+      <div class="form-group">
+        <label for="mltOut">Animate movement</label>
+        <input type="checkbox" name="mltAnimate" data-dtype="Boolean"/>
+      </div>
+      <hr>
+      <div class="form-group">
+        <label for="mltLocal">Scene-local</label>
+        <input type="checkbox" name="mltLocal" data-dtype="Boolean"/>
+        <p class="notes">Restrict teleport and cloning regions to match only with other regions on the same scene.
+      </div>
+      <hr>
+      <h3 class="form-header"><i class="far fa-clone"/></i> Token cloning</h3>
+      <p class="notes">Tokens will be cloned from <b>Source</b> regions to any <b>Target</b> regions with matching identifiers.</p>
+      <div class="form-group">
+        <label for="mltSource">Source</label>
+        <input type="checkbox" name="mltSource" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltTarget">Target</label>
+        <input type="checkbox" name="mltTarget" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltCloneId">Clone identifier</label>
+        <input type="text" name="mltCloneId" data-dtype="String"/>
+      </div>
+      <hr>
+      <p class="notes">Settings for cloned tokens created by this Target region.
+      <div class="form-group">
+        <label for="mltTintColor">Tint color for cloned tokens</label>
+        <div class="form-fields">
+          <input class="color" type="text" name="mltTintColor">
+          <input type="color" name="mltTintColorPicker" data-edit="mltTintColor">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="mltFlipX">Mirror horizontally</label>
+        <input type="checkbox" name="mltFlipX" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltFlipY">Mirror vertically</label>
+        <input type="checkbox" name="mltFlipY" data-dtype="Boolean"/>
+      </div>
+      <hr>
+      <h3 class="form-header"><i class="fas fa-magic"/></i> Macro triggers</h3>
+      <p class="notes">Trigger a macro when a token enters this region, leaves it, or moves within it. Within the macro, the variables <b>scene</b>, <b>region</b> and <b>token</b> give the <b>Scene</b>, <b>Drawing</b> and <b>Token</b> objects involved.</p>
+      <div class="form-group">
+        <label for="mltMacroEnter">Trigger on enter</label>
+        <input type="checkbox" name="mltMacroEnter" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltMacroLeave">Trigger on leave</label>
+        <input type="checkbox" name="mltMacroLeave" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltMacroMove">Trigger on movement</label>
+        <input type="checkbox" name="mltMacroMove" data-dtype="Boolean"/>
+      </div>
+      <p class="notes">Within the macro, the <b>event</b> variable will take one of the values <b>MLT.ENTER</b>, <b>MLT.LEAVE</b>, or <b>MLT.MOVE</b>.</p>
+      <div class="form-group">
+        <label for="mltMacroName">Macro name</label>
+        <input type="text" name="mltMacroName" data-dtype="String"/>
+      </div>
+      <div class="form-group">
+        <label for="mltMacroName">Additional arguments</label>
+        <input type="text" name="mltMacroArgs" data-dtype="String"/></textarea>
+        <p class="notes">Comma-separated, available in the <b>args</b> variable within your macro.</p>
+      </div>
+      <hr>
+      <h3 class="form-header"><i class="fas fa-bars"/></i> Levels</h3>
+      <p class="notes">Tokens moving onto a <b>@stairs</b> token will be teleported to any other <b>@stairs</b> token at the same relative position within a numerically-adjacent level region.</p>
+      <div class="form-group">
+        <label for="mltLevel">Level Region</label>
+        <input type="checkbox" name="mltLevel" data-dtype="Boolean"/>
+        </div>
+        <div class="form-group">
+        <label for="mltLevelNumber">Level Number</label>
+        <input type="text" name="mltLevelNumber" value="0" data-dtype="Number"/>
+      </div>
+    </div>`;
+
+    html.find(".tabs .item").last().after(tab);
+    html.find(".tab").last().after(contents);
+    const mltTab = html.find(".tab").last();
+    const input = (name) => mltTab.find(`input[name="${name}"]`);
+
+    input("mltIn").prop("checked", flags.in);
+    input("mltOut").prop("checked", flags.out);
+    input("mltTeleportId").prop("value", flags.teleportId);
+    input("mltAnimate").prop("checked", flags.animate);
+    input("mltSource").prop("checked", flags.source);
+    input("mltTarget").prop("checked", flags.target);
+    input("mltCloneId").prop("value", flags.cloneId);
+    input("mltTintColor").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
+    input("mltTintColorPicker").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
+    input("mltFlipX").prop("checked", flags.flipX);
+    input("mltFlipY").prop("checked", flags.flipY);
+    input("mltMacroEnter").prop("checked", flags.macroEnter);
+    input("mltMacroLeave").prop("checked", flags.macroLeave);
+    input("mltMacroMove").prop("checked", flags.macroMove);
+    input("mltMacroName").prop("value", flags.macroName);
+    input("mltMacroArgs").prop("value", flags.macroArgs);
+    input("mltLevel").prop("checked", flags.level);
+    input("mltLevelNumber").prop("value", flags.levelNumber || 0);
+    input("mltLocal").prop("checked", flags.local);
+
+    const isChecked = (name) => input(name).is(":checked");
+    const enable = (name, enabled) => input(name).prop("disabled", !enabled);
+    const onChange = () => {
+      const isTeleport = isChecked("mltIn") || isChecked("mltOut");
+      const isSource = isChecked("mltSource");
+      const isTarget = isChecked("mltTarget");
+      const isMacro = isChecked("mltMacroEnter") || isChecked("mltMacroLeave") || isChecked("mltMacroMove");
+      const isLevel = isChecked("mltLevel");
+
+      enable("mltTeleportId", isTeleport);
+      enable("mltAnimate", isTeleport);
+      enable("mltCloneId", isSource || isTarget);
+      enable("mltTintColor", isTarget);
+      enable("mltTintColorPicker", isTarget);
+      enable("mltFlipX", isTarget);
+      enable("mltFlipY", isTarget);
+      enable("mltMacroName", isMacro);
+      enable("mltMacroArgs", isMacro);
+      enable("mltLevelNumber", isLevel);
+      enable("mltLocal", isTeleport || isSource || isTarget);
+    };
+    if (this._isUserGamemaster(game.user._id)) {
+      mltTab.find("input").on("change", onChange);
+    } else {
+      mltTab.find("input").prop("disabled", true);
+    }
+    onChange();
+  }
+
+  _convertDrawingConfigUpdateData(data, update) {
+    const properties = ["mltTintColorPicker"];
+    const convertFlag = (condition, property, flagName) => {
+      properties.push(property);
+      if (!condition) {
+        return;
+      }
+      if (!update.flags) {
+        update.flags = {};
+      }
+      if (!update.flags[MLT.SCOPE]) {
+        update.flags[MLT.SCOPE] = {};
+      }
+      update.flags[MLT.SCOPE][flagName] = update[property];
+    };
+
+    const isTeleport = "mltIn" in update || "mltOut" in update;
+    const isMacro = "mltMacroEnter" in update || "mltMacroLeave" in update || "mltMacroMove" in update;
+    convertFlag("mltIn" in update, "mltIn", "in");
+    convertFlag("mltOut" in update, "mltOut", "out");
+    convertFlag(isTeleport, "mltTeleportId", "teleportId");
+    convertFlag(isTeleport, "mltAnimate", "animate");
+    convertFlag("mltSource" in update, "mltSource", "source");
+    convertFlag("mltTarget" in update, "mltTarget", "target");
+    convertFlag("mltSource" in update || "mltTarget" in update, "mltCloneId", "cloneId");
+    convertFlag("mltTarget" in update, "mltTintColor", "tintColor");
+    convertFlag("mltTarget" in update, "mltFlipX", "flipX");
+    convertFlag("mltTarget" in update, "mltFlipY", "flipY");
+    convertFlag("mltMacroEnter" in update, "mltMacroEnter", "macroEnter");
+    convertFlag("mltMacroLeave" in update, "mltMacroLeave", "macroLeave");
+    convertFlag("mltMacroMove" in update, "mltMacroMove", "macroMove");
+    convertFlag(isMacro, "mltMacroName", "macroName");
+    convertFlag(isMacro, "mltMacroArgs", "macroArgs");
+    convertFlag("mltLevel" in update, "mltLevelNumber", "levelNumber");
+    convertFlag("mltIn" in update || "mltOut" in update || "mltSource" in update || "mltTarget" in update,
+                "mltLocal", "local");
+    properties.forEach((property) => delete update[property]);
+
+    if (!("text" in update) && update.flags && update.flags[MLT.SCOPE]) {
+      const flags = update.flags[MLT.SCOPE];
+      let lines = [];
+      if (flags.in || flags.out) {
+        lines.push((flags.in ? "▶ " : "") + flags.teleportId + (flags.out ? " ▶" : ""));
+      }
+      if (flags.source || flags.target) {
+        lines.push((flags.source ? "□" : "") + (flags.target ? "▣" : "") + " " + flags.cloneId);
+      }
+      if (flags.macroEnter || flags.macroLeave || flags.macroMove) {
+        lines.push("✧ " + flags.macroName);
+      }
+      if (flags.level) {
+        lines.push("☰ " + String(flags.levelNumber));
+      }
+      if (lines.length) {
+        update.text = lines.join("\n");
+      }
+    }
+
+    // TODO: check this doesn't clear all existing flags from other modules.
+    if (!update.flags) {
+      update.flags = {};
+    }
+    if (!update.flags[MLT.SCOPE]) {
+      update.flags[MLT.SCOPE] = {};
+    }
+  }
+
   _allowTokenOperation(token, options) {
     return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
   }
@@ -825,6 +1052,7 @@ class MultilevelTokens {
 
   _onPreUpdateDrawing(scene, drawing, update, options, userId) {
     this._onDeleteDrawing(scene, drawing, update, options, userId);
+    this._convertDrawingConfigUpdateData(drawing, update);
     return true;
   }
 
@@ -964,6 +1192,10 @@ class MultilevelTokens {
         canvas.hud.bubbles.say(t, message.data.content, {emote: message.data.type === CONST.CHAT_MESSAGE_TYPES_EMOTE});
       }
     })
+  }
+
+  _onRenderDrawingConfig(app, html, data) {
+    this._injectDrawingConfigTab(app, html, data);
   }
 }
 
