@@ -593,89 +593,6 @@ class MultilevelTokens {
     }
   }
 
-  _legacyTagsToFlags(text) {
-    const flags = {};
-    const convertTag = (name, f) => {
-      if (text.startsWith(name)) {
-        converted = true;
-        f(text.substring(name.length));
-      }
-    }
-    const isLocal = id => id.startsWith("!");
-    const stripLocal = id => isLocal(id) ? id.substring(1) : id;
-    convertTag("@in:", id => {
-      flags.in = true;
-      flags.local = isLocal(id);
-      flags.teleportId = stripLocal(id);
-    });
-    convertTag("@out:", id => {
-      flags.out = true;
-      flags.local = isLocal(id);
-      flags.teleportId = stripLocal(id);
-    });
-    convertTag("@inout:", id => {
-      flags.in = true;
-      flags.out = true;
-      flags.local = isLocal(id);
-      flags.teleportId = stripLocal(id);
-    });
-    convertTag("@source:", id => {
-      flags.source = true;
-      flags.local = isLocal(id);
-      flags.cloneId = stripLocal(id);
-    });
-    convertTag("@target:", id => {
-      flags.target = true;
-      flags.local = isLocal(id);
-      flags.cloneId = stripLocal(id);
-    });
-    convertTag("@macro:", name => {
-      flags.macroEnter = true;
-      flags.macroName = name;
-    })
-    convertTag("@level:", n => {
-      flags.level = true;
-      flags.levelNumber = parseInt(n);
-    });
-    return converted ? flags : null;
-  }
-
-  _migrateRegion(requestBatch, scene, drawing) {
-    if (!this._isAuthorisedRegion(drawing) || !drawing.text) {
-      return;
-    }
-    const flags = this._legacyTagsToFlags(drawing.text)
-    if (!flag) {
-      return;
-    }
-    const data = {_id: drawing._id, flags: {}, text: this._flagsToLabel(flags)};
-    data.flags[MLT.SCOPE] = flags;
-    requestBatch.updateDrawing(scene, data);
-  }
-
-  _migrateRegions() {
-    this._queueAsync(requestBatch =>
-        game.scenes.forEach(scene =>
-            scene.data.drawings.forEach(r => this._migrateRegion(requestBatch, scene, r))));
-  }
-
-  refreshAll() {
-    if (!this._isPrimaryGamemaster()) {
-      return;
-    }
-    console.log(MLT.LOG_PREFIX, "Refreshing all");
-    this._queueAsync(requestBatch => {
-      game.scenes.forEach(scene => {
-        scene.data.tokens
-            .filter(this._isReplicatedToken.bind(this))
-            .forEach(t => requestBatch.deleteToken(scene, t._id));
-        scene.data.drawings
-            .filter(r => this._hasRegionFlag(r, "source"))
-            .forEach(r => this._replicateAllFromSourceRegion(requestBatch, scene, r));
-      });
-    });
-  }
-
   _setLastTeleport(scene, token) {
     if (game.user.isGM) {
       this._lastTeleport[token._id] =
@@ -839,12 +756,98 @@ class MultilevelTokens {
     return true;
   }
 
+  _legacyTagsToFlags(text) {
+    const flags = {
+      in: false,
+      out: false,
+      teleportId: undefined,
+      animate: false,
+      source: false,
+      target: false,
+      tintColor: MLT.DEFAULT_TINT_COLOR,
+      flipX: false,
+      flipY: false,
+      macroEnter: false,
+      macroLeave: false,
+      macroMove: false,
+      macroName: undefined,
+      macroArgs: undefined,
+      level: false,
+      levelNumber: 0,
+      local: false,
+    };
+    let converted = false;
+    const convertTag = (name, f) => {
+      if (text.startsWith(name)) {
+        converted = true;
+        f(text.substring(name.length));
+      }
+    }
+    const isLocal = id => id.startsWith("!");
+    const stripLocal = id => isLocal(id) ? id.substring(1) : id;
+    convertTag("@in:", id => {
+      flags.in = true;
+      flags.local = isLocal(id);
+      flags.teleportId = stripLocal(id);
+    });
+    convertTag("@out:", id => {
+      flags.out = true;
+      flags.local = isLocal(id);
+      flags.teleportId = stripLocal(id);
+    });
+    convertTag("@inout:", id => {
+      flags.in = true;
+      flags.out = true;
+      flags.local = isLocal(id);
+      flags.teleportId = stripLocal(id);
+    });
+    convertTag("@source:", id => {
+      flags.source = true;
+      flags.local = isLocal(id);
+      flags.cloneId = stripLocal(id);
+    });
+    convertTag("@target:", id => {
+      flags.target = true;
+      flags.local = isLocal(id);
+      flags.cloneId = stripLocal(id);
+    });
+    convertTag("@macro:", name => {
+      flags.macroEnter = true;
+      flags.macroName = name;
+    })
+    convertTag("@level:", n => {
+      flags.level = true;
+      flags.levelNumber = parseInt(n);
+    });
+    return converted ? flags : null;
+  }
+
+  _migrateRegion(requestBatch, scene, drawing) {
+    if (!this._isAuthorisedRegion(drawing) || !drawing.text) {
+      return;
+    }
+    const flags = this._legacyTagsToFlags(drawing.text)
+    if (!flags) {
+      return;
+    }
+    const data = {_id: drawing._id, flags: {}, text: this._flagsToLabel(flags)};
+    data.flags[MLT.SCOPE] = flags;
+    requestBatch.updateDrawing(scene, data);
+  }
+
+  _migrateRegions() {
+    this._queueAsync(requestBatch =>
+        game.scenes.forEach(scene =>
+            scene.data.drawings.forEach(r => this._migrateRegion(requestBatch, scene, r))));
+  }
+
   _flagsToLabel(flags) {
     let lines = [];
     if (flags.in || flags.out) {
       lines.push((flags.in ? "▶ " : "") + flags.teleportId + (flags.out ? " ▶" : ""));
     }
     if (flags.source || flags.target) {
+      // TODO: clearer icons.
       lines.push((flags.source ? "□" : "") + (flags.target ? "▣" : "") + " " + flags.cloneId);
     }
     if (flags.macroEnter || flags.macroLeave || flags.macroMove) {
@@ -853,7 +856,7 @@ class MultilevelTokens {
     if (flags.level) {
       lines.push("☰ " + String(flags.levelNumber));
     }
-    return lines.length ? lines.join("\n") : null;
+    return lines.length ? lines.join(" ") : null;
   }
 
   _injectDrawingConfigTab(app, html, data) {
@@ -952,11 +955,11 @@ class MultilevelTokens {
       <h3 class="form-header"><i class="fas fa-bars"/></i> Levels</h3>
       <p class="notes">Tokens moving onto a <b>@stairs</b> token will be teleported to any other <b>@stairs</b> token at the same relative position within a numerically-adjacent level region.</p>
       <div class="form-group">
-        <label for="mltLevel">Level Region</label>
+        <label for="mltLevel">Level region</label>
         <input type="checkbox" name="mltLevel" data-dtype="Boolean"/>
-        </div>
-        <div class="form-group">
-        <label for="mltLevelNumber">Level Number</label>
+      </div>
+      <div class="form-group">
+        <label for="mltLevelNumber">Level number</label>
         <input type="text" name="mltLevelNumber" value="0" data-dtype="Number"/>
       </div>
     </div>`;
@@ -1020,18 +1023,19 @@ class MultilevelTokens {
     if (!("mltIn" in update)) {
       return;
     }
-    // TODO: check this doesn't clear all existing flags from other modules.
-    if (!update.flags) {
-      update.flags = {};
-    }
-    if (!update.flags[MLT.SCOPE]) {
-      update.flags[MLT.SCOPE] = {};
-    }
 
-    const properties = ["mltTintColorPicker"];
-    const convertFlag = (property, flagName) => {
-      properties.push(property);
-      update.flags[MLT.SCOPE][flagName] = update[property];
+    delete update["mltTintColorPicker"];
+    const convertFlag = (inputName, flagName) => {
+      if (!data.flags || !data.flags[MLT.SCOPE] || data.flags[MLT.SCOPE][flagName] !== update[inputName]) {
+        if (!update.flags) {
+          update.flags = {};
+        }
+        if (!update.flags[MLT.SCOPE]) {
+          update.flags[MLT.SCOPE] = {};
+        }
+        update.flags[MLT.SCOPE][flagName] = update[inputName];
+      }
+      delete update[inputName];
     };
 
     convertFlag("mltIn", "in");
@@ -1049,20 +1053,26 @@ class MultilevelTokens {
     convertFlag("mltMacroMove", "macroMove");
     convertFlag("mltMacroName", "macroName");
     convertFlag("mltMacroArgs", "macroArgs");
+    convertFlag("mltLevel", "level");
     convertFlag("mltLevelNumber", "levelNumber");
     convertFlag("mltLocal", "local");
-    properties.forEach((property) => delete update[property]);
 
-    const manualText = "text" in update;
+    let manualText = "text" in update && update.text;
     if (manualText) {
       const convertedFlags = this._legacyTagsToFlags(update.text);
       if (convertedFlags) {
+        if (!update.flags) {
+          update.flags = {};
+        }
         update.flags[MLT.SCOPE] = convertedFlags;
         manualText = false;
       }
     }
-    if (!manualText) {
-      const text = this._flagsToLabel(update.flags[MLT.SCOPE]);
+    const oldFlags = "flags" in data && MLT.SCOPE in data.flags ? data.flags[MLT.SCOPE] : {};
+    if (!manualText && "flags" in update && MLT.SCOPE in update.flags &&
+        (this._flagsToLabel(oldFlags) === data.text || !data.text)) {
+      const mergedFlags = Object.assign(duplicate(oldFlags), update.flags[MLT.SCOPE]);
+      const text = this._flagsToLabel(mergedFlags);
       if (text) {
         update.text = text;
       }
@@ -1071,6 +1081,23 @@ class MultilevelTokens {
 
   _allowTokenOperation(token, options) {
     return !this._isReplicatedToken(token) || (MLT.REPLICATED_UPDATE in options);
+  }
+
+  refreshAll() {
+    if (!this._isPrimaryGamemaster()) {
+      return;
+    }
+    console.log(MLT.LOG_PREFIX, "Refreshing all");
+    this._queueAsync(requestBatch => {
+      game.scenes.forEach(scene => {
+        scene.data.tokens
+            .filter(this._isReplicatedToken.bind(this))
+            .forEach(t => requestBatch.deleteToken(scene, t._id));
+        scene.data.drawings
+            .filter(r => this._hasRegionFlag(r, "source"))
+            .forEach(r => this._replicateAllFromSourceRegion(requestBatch, scene, r));
+      });
+    });
   }
 
   _onReady() {
