@@ -1,19 +1,9 @@
 const MLT = {
   SCOPE: "multilevel-tokens",
-  SETTING_TINT_COLOR: "tintcolor",
-  SETTING_ANIMATE_TELEPORTS: "animateteleports",
   SETTING_AUTO_TARGET: "autotarget",
   SETTING_AUTO_CHAT_BUBBLE: "autochatbubble",
   SETTING_CLONE_MODULE_FLAGS: "clonemoduleflags",
   DEFAULT_TINT_COLOR: "#808080",
-  TAG_SOURCE: "@source:",
-  TAG_TARGET: "@target:",
-  TAG_IN: "@in:",
-  TAG_OUT: "@out:",
-  TAG_INOUT: "@inout:",
-  TAG_LEVEL: "@level:",
-  TAG_MACRO: "@macro:",
-  TAG_LOCAL_PREFIX: "!",
   FLAG_SOURCE_SCENE: "sscene",
   FLAG_SOURCE_TOKEN: "stoken",
   FLAG_SOURCE_REGION: "srect",
@@ -64,15 +54,6 @@ class MltRequestBatch {
 
 class MultilevelTokens {
   constructor() {
-    game.settings.register(MLT.SCOPE, MLT.SETTING_TINT_COLOR, {
-      name: "Tint color for cloned tokens",
-      hint: "Extra tint color applied to cloned tokens in target regions. Should be a hex color code.",
-      scope: "world",
-      config: true,
-      type: String,
-      default: MLT.DEFAULT_TINT_COLOR,
-      onChange: this.refreshAll.bind(this),
-    });
     game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_TARGET, {
       name: "Auto-sync player targets",
       hint: "If checked, targeting or detargeting a token will also target or detarget its clones (or originals). Turn this off if it interferes with things.",
@@ -88,14 +69,6 @@ class MultilevelTokens {
       config: true,
       type: Boolean,
       default: true
-    });
-    game.settings.register(MLT.SCOPE, MLT.SETTING_ANIMATE_TELEPORTS, {
-      name: "Animate teleports",
-      hint: "If checked, tokens teleporting to the same scene will move to the new location with an animation rather than instantly.",
-      scope: "world",
-      config: true,
-      type: Boolean,
-      default: false
     });
     // TODO: maybe be necessary to decide this on a module-by-module basis. Could provide a way to let the user decide,
     // and / or just bake in defaults for known cases where it matters.
@@ -170,11 +143,15 @@ class MultilevelTokens {
     return activeGamemasters.length > 0 && activeGamemasters[0] === game.user._id;
   }
 
-  _isTaggedRegion(drawing, tags) {
+  _isAuthorisedRegion(drawing) {
     return (drawing.type === CONST.DRAWING_TYPES.RECTANGLE ||
             drawing.type === CONST.DRAWING_TYPES.ELLIPSE ||
             drawing.type === CONST.DRAWING_TYPES.POLYGON) &&
-        this._isUserGamemaster(drawing.author) &&
+        this._isUserGamemaster(drawing.author);
+  }
+
+  _isTaggedRegion(drawing, tags) {
+    return this._isAuthorisedRegion(drawing) &&
         (tags.constructor === Array
             ? tags.some(t => drawing.text && drawing.text.startsWith(t))
             : drawing.text && drawing.text.startsWith(tags));
@@ -605,6 +582,67 @@ class MultilevelTokens {
     }
   }
 
+  _migrateRegion(requestBatch, scene, drawing) {
+    if (!this._isAuthorisedRegion(drawing) || !drawing.text) {
+      return;
+    }
+    const flags = {};
+    let converted = false;
+    const convertTag = (name, f) => {
+      if (drawing.text.startsWith(name)) {
+        converted = true;
+        f(drawing.text.substring(name.length));
+      }
+    }
+    const isLocal = id => id.startsWith("!");
+    const stripLocal = id => isLocal(id) ? id.substring(1) : id;
+    convertTag("@in:", id => {
+      flags.in = true;
+      flags.local = isLocal(id);
+      flags.teleportId = stripLocal(id);
+    });
+    convertTag("@out:", id => {
+      flags.out = true;
+      flags.local = isLocal(id);
+      flags.teleportId = stripLocal(id);
+    });
+    convertTag("@inout:", id => {
+      flags.in = true;
+      flags.out = true;
+      flags.local = isLocal(id);
+      flags.teleportId = stripLocal(id);
+    });
+    convertTag("@source:", id => {
+      flags.source = true;
+      flags.local = isLocal(id);
+      flags.cloneId = stripLocal(id);
+    });
+    convertTag("@target:", id => {
+      flags.target = true;
+      flags.local = isLocal(id);
+      flags.cloneId = stripLocal(id);
+    });
+    convertTag("@macro:", name => {
+      flags.macroEnter = true;
+      flags.macroName = name;
+    })
+    convertTag("@level:", n => {
+      flags.level = true;
+      flags.levelNumber = parseInt(n);
+    });
+    if (converted) {
+      const data = {_id: drawing._id, flags: {}, text: this._flagsToLabel(flags)};
+      data.flags[MLT.SCOPE] = flags;
+      requestBatch.updateDrawing(scene, data);
+    }
+  }
+
+  _migrateRegions() {
+    this._queueAsync(requestBatch =>
+        game.scenes.forEach(scene =>
+            scene.data.drawings.forEach(r => this._migrateRegion(requestBatch, scene, r))));
+  }
+
   refreshAll() {
     if (!this._isPrimaryGamemaster()) {
       return;
@@ -786,6 +824,24 @@ class MultilevelTokens {
     return true;
   }
 
+  _flagsToLabel(flags) {
+    let lines = [];
+    if (flags.in || flags.out) {
+      lines.push((flags.in ? "▶ " : "") + flags.teleportId + (flags.out ? " ▶" : ""));
+    }
+    if (flags.source || flags.target) {
+      lines.push((flags.source ? "□" : "") + (flags.target ? "▣" : "") + " " + flags.cloneId);
+    }
+    if (flags.macroEnter || flags.macroLeave || flags.macroMove) {
+      lines.push("✧ " + flags.macroName);
+    }
+    if (flags.level) {
+      lines.push("☰ " + String(flags.levelNumber));
+    }
+    return lines.length ? lines.join("\n") : null
+    }
+  }
+
   _injectDrawingConfigTab(app, html, data) {
     let flags = {};
     if (data.object.flags && data.object.flags[MLT.SCOPE]) {
@@ -916,7 +972,7 @@ class MultilevelTokens {
     input("mltLevelNumber").prop("value", flags.levelNumber || 0);
     input("mltLocal").prop("checked", flags.local);
 
-    const isChecked = (name) => input(name).is(":checked");
+    const isChecked = name => input(name).is(":checked");
     const enable = (name, enabled) => input(name).prop("disabled", !enabled);
     const onChange = () => {
       const isTeleport = isChecked("mltIn") || isChecked("mltOut");
@@ -984,22 +1040,9 @@ class MultilevelTokens {
     properties.forEach((property) => delete update[property]);
 
     if (!("text" in update) && update.flags && update.flags[MLT.SCOPE]) {
-      const flags = update.flags[MLT.SCOPE];
-      let lines = [];
-      if (flags.in || flags.out) {
-        lines.push((flags.in ? "▶ " : "") + flags.teleportId + (flags.out ? " ▶" : ""));
-      }
-      if (flags.source || flags.target) {
-        lines.push((flags.source ? "□" : "") + (flags.target ? "▣" : "") + " " + flags.cloneId);
-      }
-      if (flags.macroEnter || flags.macroLeave || flags.macroMove) {
-        lines.push("✧ " + flags.macroName);
-      }
-      if (flags.level) {
-        lines.push("☰ " + String(flags.levelNumber));
-      }
-      if (lines.length) {
-        update.text = lines.join("\n");
+      const text = this._flagsToLabel(update.flags[MLT.SCOPE]);
+      if (text) {
+        update.text = text;
       }
     }
 
@@ -1019,6 +1062,7 @@ class MultilevelTokens {
   _onReady() {
     // Replications might be out of sync if there was previously no GM and we just logged in.
     if (this._isOnlyGamemaster()) {
+      this._migrateRegions();
       this.refreshAll();
     }
   }
