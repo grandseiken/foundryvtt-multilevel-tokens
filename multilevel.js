@@ -593,16 +593,12 @@ class MultilevelTokens {
     }
   }
 
-  _migrateRegion(requestBatch, scene, drawing) {
-    if (!this._isAuthorisedRegion(drawing) || !drawing.text) {
-      return;
-    }
+  _legacyTagsToFlags(text) {
     const flags = {};
-    let converted = false;
     const convertTag = (name, f) => {
-      if (drawing.text.startsWith(name)) {
+      if (text.startsWith(name)) {
         converted = true;
-        f(drawing.text.substring(name.length));
+        f(text.substring(name.length));
       }
     }
     const isLocal = id => id.startsWith("!");
@@ -641,11 +637,20 @@ class MultilevelTokens {
       flags.level = true;
       flags.levelNumber = parseInt(n);
     });
-    if (converted) {
-      const data = {_id: drawing._id, flags: {}, text: this._flagsToLabel(flags)};
-      data.flags[MLT.SCOPE] = flags;
-      requestBatch.updateDrawing(scene, data);
+    return converted ? flags : null;
+  }
+
+  _migrateRegion(requestBatch, scene, drawing) {
+    if (!this._isAuthorisedRegion(drawing) || !drawing.text) {
+      return;
     }
+    const flags = this._legacyTagsToFlags(drawing.text)
+    if (!flag) {
+      return;
+    }
+    const data = {_id: drawing._id, flags: {}, text: this._flagsToLabel(flags)};
+    data.flags[MLT.SCOPE] = flags;
+    requestBatch.updateDrawing(scene, data);
   }
 
   _migrateRegions() {
@@ -1008,59 +1013,59 @@ class MultilevelTokens {
       mltTab.find("input").prop("disabled", true);
     }
     onChange();
+    // TODO: would be nice to have the update button always visible.
   }
 
   _convertDrawingConfigUpdateData(data, update) {
-    const properties = ["mltTintColorPicker"];
-    const convertFlag = (condition, property, flagName) => {
-      properties.push(property);
-      if (!condition) {
-        return;
-      }
-      if (!update.flags) {
-        update.flags = {};
-      }
-      if (!update.flags[MLT.SCOPE]) {
-        update.flags[MLT.SCOPE] = {};
-      }
-      update.flags[MLT.SCOPE][flagName] = update[property];
-    };
-
-    const isTeleport = "mltIn" in update || "mltOut" in update;
-    const isMacro = "mltMacroEnter" in update || "mltMacroLeave" in update || "mltMacroMove" in update;
-    convertFlag("mltIn" in update, "mltIn", "in");
-    convertFlag("mltOut" in update, "mltOut", "out");
-    convertFlag(isTeleport, "mltTeleportId", "teleportId");
-    convertFlag(isTeleport, "mltAnimate", "animate");
-    convertFlag("mltSource" in update, "mltSource", "source");
-    convertFlag("mltTarget" in update, "mltTarget", "target");
-    convertFlag("mltSource" in update || "mltTarget" in update, "mltCloneId", "cloneId");
-    convertFlag("mltTarget" in update, "mltTintColor", "tintColor");
-    convertFlag("mltTarget" in update, "mltFlipX", "flipX");
-    convertFlag("mltTarget" in update, "mltFlipY", "flipY");
-    convertFlag("mltMacroEnter" in update, "mltMacroEnter", "macroEnter");
-    convertFlag("mltMacroLeave" in update, "mltMacroLeave", "macroLeave");
-    convertFlag("mltMacroMove" in update, "mltMacroMove", "macroMove");
-    convertFlag(isMacro, "mltMacroName", "macroName");
-    convertFlag(isMacro, "mltMacroArgs", "macroArgs");
-    convertFlag("mltLevel" in update, "mltLevelNumber", "levelNumber");
-    convertFlag("mltIn" in update || "mltOut" in update || "mltSource" in update || "mltTarget" in update,
-                "mltLocal", "local");
-    properties.forEach((property) => delete update[property]);
-
-    if (!("text" in update) && update.flags && update.flags[MLT.SCOPE]) {
-      const text = this._flagsToLabel(update.flags[MLT.SCOPE]);
-      if (text) {
-        update.text = text;
-      }
+    if (!("mltIn" in update)) {
+      return;
     }
-
     // TODO: check this doesn't clear all existing flags from other modules.
     if (!update.flags) {
       update.flags = {};
     }
     if (!update.flags[MLT.SCOPE]) {
       update.flags[MLT.SCOPE] = {};
+    }
+
+    const properties = ["mltTintColorPicker"];
+    const convertFlag = (property, flagName) => {
+      properties.push(property);
+      update.flags[MLT.SCOPE][flagName] = update[property];
+    };
+
+    convertFlag("mltIn", "in");
+    convertFlag("mltOut", "out");
+    convertFlag("mltTeleportId", "teleportId");
+    convertFlag("mltAnimate", "animate");
+    convertFlag("mltSource", "source");
+    convertFlag("mltTarget", "target");
+    convertFlag("mltCloneId", "cloneId");
+    convertFlag("mltTintColor", "tintColor");
+    convertFlag("mltFlipX", "flipX");
+    convertFlag("mltFlipY", "flipY");
+    convertFlag("mltMacroEnter", "macroEnter");
+    convertFlag("mltMacroLeave", "macroLeave");
+    convertFlag("mltMacroMove", "macroMove");
+    convertFlag("mltMacroName", "macroName");
+    convertFlag("mltMacroArgs", "macroArgs");
+    convertFlag("mltLevelNumber", "levelNumber");
+    convertFlag("mltLocal", "local");
+    properties.forEach((property) => delete update[property]);
+
+    const manualText = "text" in update;
+    if (manualText) {
+      const convertedFlags = this._legacyTagsToFlags(update.text);
+      if (convertedFlags) {
+        update.flags[MLT.SCOPE] = convertedFlags;
+        manualText = false;
+      }
+    }
+    if (!manualText) {
+      const text = this._flagsToLabel(update.flags[MLT.SCOPE]);
+      if (text) {
+        update.text = text;
+      }
     }
   }
 
