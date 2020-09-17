@@ -95,6 +95,16 @@ You can run a specific macro whenever a token enters a particular area using _ma
 
 # Version history
 
+* **1.0.0**:
+  * Overhauled the user interface to make the module easier to use. Regions are now configured using a dedicated interface within a tab in the Drawing Configuration window for any applicable drawing. It's no longer necessary to add text labels containing special syntax to each drawing.
+  * Short descriptive labels are still added (automatically) to each region for clarity, but have no special meaning. They can be overridden by editing the label text manually.
+  * Regions set up using the old mechanism will be automatically updated to the new format.
+  * A single drawing may now serve multiple purposes at once. For example, a region can be both a teleport and a macro trigger, or both a clone source and a clone target.
+  * Removed the global module setting for tinting cloned tokens. This can now be configured individually for each clone target region.
+  * Removed the global module setting for animating token movement when teleporting. This can now be enabled or disabled individually for each teleport region.
+  * Clone target regions can now be configured to mirror token positions horizontally or vertically.
+  * Macro regions now support passing a fixed set of additional arguments to the macro when triggered, available in the new `args` variable.
+  * Macro regions now support also triggering the macro when a token leaves the region, or whenever a token moves within it. Each of the triggers can be enabled or disabled for a region individually. A new `event` variable available to the macro describes which type of event occurred.
 * **0.4.0**:
   * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
   * Added a way to trigger macros using `@macro` regions.

@@ -848,7 +848,7 @@ class MultilevelTokens {
     }
     if (flags.source || flags.target) {
       // TODO: clearer icons.
-      lines.push((flags.source ? "□" : "") + (flags.target ? "▣" : "") + " " + flags.cloneId);
+      lines.push((flags.source ? "▣" : "") + (flags.target ? "□" : "") + " " + flags.cloneId);
     }
     if (flags.macroEnter || flags.macroLeave || flags.macroMove) {
       lines.push("✧ " + flags.macroName);
