@@ -1,5 +1,8 @@
 const MLT = {
   SCOPE: "multilevel-tokens",
+  ENTER: "enter",
+  LEAVE: "leave",
+  MOVE: "move",
   SETTING_AUTO_TARGET: "autotarget",
   SETTING_AUTO_CHAT_BUBBLE: "autochatbubble",
   SETTING_CLONE_MODULE_FLAGS: "clonemoduleflags",
@@ -633,17 +636,9 @@ class MultilevelTokens {
     if (!game.user.isGM) {
       return;
     }
+
     const currentMacroRegions = this._getFlaggedRegionsContainingToken(scene, token, ["macroEnter", "macroLeave", "macroMove"]);
     const previousMacroRegionIds = this._lastMacro[token._id] || [];
-
-    const enteredMacroRegions = currentMacroRegions.filter(r => !previousMacroRegionIds.includes(r._id));
-    const movedMacroRegions = currentMacroRegions.filter(r => previousMacroRegionIds.includes(r._id));
-    const leftMacroRegions = previousMacroRegionIds.filter(id => !currentMacroRegions.some(r => r._id === id))
-        .flatMap(id => {
-          const r = scene.data.drawings.find(r._id === id);
-          return r ? [r] : [];
-        });
-
     if (currentMacroRegions.length) {
       this._lastMacro[token._id] = currentMacroRegions.map(r => r._id);
     } else {
@@ -652,8 +647,18 @@ class MultilevelTokens {
     if (!this._isPrimaryGamemaster()) {
       return false;
     }
-    for (const region of enteredMacroRegions) {
-      const macroName = this._getRegionFlag(region, "macroName");
+
+    const enteredMacroRegions = currentMacroRegions.flatMap(r =>
+        this._hasRegionTag(r, "macroEnter") && !previousMacroRegionIds.includes(r._id) ? [[r, MLT.ENTER]] : []);
+    const movedMacroRegions = currentMacroRegions.flatMap(r =>
+        this._hasRegionTag(r, "macroMove") && previousMacroRegionIds.includes(r._id) ? [[r, MLT.MOVE]] : []);
+    const leftMacroRegions = previousMacroRegionIds.flatMap(id => {
+        const r = scene.data.drawings.find(r._id === id);
+        return r && this._hasRegionTag(r, "macroLeave") && !currentMacroRegions.some(s => s._id === id) ? [[r, MLT.LEAVE]] : [];
+    });
+
+    for (const region of enteredMacroRegions.concat(movedMacroRegions, leftMacroRegions)) {
+      const macroName = this._getRegionFlag(region[0], "macroName");
       const macro = game.macros.find(m => m.name === macroName && this._isUserGamemaster(m.data.author));
       if (!macro) {
         continue;
@@ -676,7 +681,8 @@ class MultilevelTokens {
         const outerRegion = region;
         {
           const token = canvas.tokens.get(outerToken._id) || new Token(outerToken);
-          const region = canvas.drawings.get(outerRegion._id) || new Drawing(outerRegion);
+          const region = canvas.drawings.get(outerRegion[0]._id) || new Drawing(outerRegion[0]);
+          const event = outerRegion[1];
           try {
             eval(macro.data.command);
           } catch (err) {
