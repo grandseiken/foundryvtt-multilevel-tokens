@@ -94,6 +94,8 @@ You can run a specific macro whenever a token enters a particular area using _ma
 
 # Version history
 
+* **0.4.1**:
+  * Fixed a floating-point accuracy issue that sometimes led to level-based teleports with `@stairs` tokens not functioning.
 * **0.4.0**:
   * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
   * Added a way to trigger macros using `@macro` regions.

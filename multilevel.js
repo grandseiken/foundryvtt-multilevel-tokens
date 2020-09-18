@@ -763,7 +763,9 @@ class MultilevelTokens {
       for (const adjacentRegion of adjacentLevelRegions) {
         for (const sourceStairToken of sourceStairTokens) {
           // Check if our token, when moved to the other level's region, would overlap a stair token.
-          const targetPosition = this._mapTokenPosition(scene, sourceStairToken, levelRegion, scene, adjacentRegion);
+          const targetPosition = this._mapTokenPosition(scene, sourceStairToken, levelRegion, scene, adjacentRegion)
+          targetPosition.x += token.width * scene.data.grid / 2;
+          targetPosition.y += token.height * scene.data.grid / 2;
           const linkedStairToken = allStairTokens.find(t => this._isPointInToken(scene, targetPosition, t));
           if (linkedStairToken) {
             targetStairTokens.push(linkedStairToken);
