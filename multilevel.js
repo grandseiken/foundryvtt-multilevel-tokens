@@ -632,6 +632,16 @@ class MultilevelTokens {
     }
   }
 
+  _getMacroArgs(region) {
+    const argString = this._getRegionFlag(region, "macroArgs") || "";
+    const regex = /(".*?"|[^",\s]([^",]*[^",\s])?)(?=\s*,|\s*$)/g;
+    return (argString.match(regex) || []).map(s =>
+        s.startsWith(`"`) && s.endsWith(`"`) ? s.substring(1, s.length - 1) :
+        s === "true" ? true :
+        s === "false" ? false :
+        !isNaN(s) ? +s : s);
+  }
+
   _doMacros(scene, token) {
     if (!game.user.isGM) {
       return;
@@ -683,6 +693,7 @@ class MultilevelTokens {
           const token = canvas.tokens.get(outerToken._id) || new Token(outerToken);
           const region = canvas.drawings.get(outerRegion[0]._id) || new Drawing(outerRegion[0]);
           const event = outerRegion[1];
+          const args = this._getMacroArgs(outerRegion[0]);
           try {
             eval(macro.data.command);
           } catch (err) {
