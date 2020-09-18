@@ -105,7 +105,8 @@ You can run a specific macro whenever a token enters a particular area using _ma
   * Clone target regions can now be configured to mirror token positions horizontally or vertically.
   * Macro regions now support passing a fixed set of additional arguments to the macro when triggered, available in the new `args` variable.
   * Macro regions now support also triggering the macro when a token leaves the region, or whenever a token moves within it. Each of the triggers can be enabled or disabled for a region individually. A new `event` variable available to the macro describes which type of event occurred.
-  * Fixed a floating-point accuracy issue that led to level regions and `@stairs` tokens sometimes not functioning.
+* **0.4.1**:
+  * Fixed a floating-point accuracy issue that sometimes led to level-based teleports with `@stairs` tokens not functioning.
 * **0.4.0**:
   * Added another way to set up teleports using `@level` regions (contributed by [TheGiddyLimit](https://github.com/TheGiddyLimit)).
   * Added a way to trigger macros using `@macro` regions.
