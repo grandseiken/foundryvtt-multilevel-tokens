@@ -659,12 +659,12 @@ class MultilevelTokens {
     }
 
     const enteredMacroRegions = currentMacroRegions.flatMap(r =>
-        this._hasRegionTag(r, "macroEnter") && !previousMacroRegionIds.includes(r._id) ? [[r, MLT.ENTER]] : []);
+        this._hasRegionFlag(r, "macroEnter") && !previousMacroRegionIds.includes(r._id) ? [[r, MLT.ENTER]] : []);
     const movedMacroRegions = currentMacroRegions.flatMap(r =>
-        this._hasRegionTag(r, "macroMove") && previousMacroRegionIds.includes(r._id) ? [[r, MLT.MOVE]] : []);
+        this._hasRegionFlag(r, "macroMove") && previousMacroRegionIds.includes(r._id) ? [[r, MLT.MOVE]] : []);
     const leftMacroRegions = previousMacroRegionIds.flatMap(id => {
-        const r = scene.data.drawings.find(r._id === id);
-        return r && this._hasRegionTag(r, "macroLeave") && !currentMacroRegions.some(s => s._id === id) ? [[r, MLT.LEAVE]] : [];
+        const r = scene.data.drawings.find(d => d._id === id);
+        return r && this._hasRegionFlag(r, "macroLeave") && !currentMacroRegions.some(s => s._id === id) ? [[r, MLT.LEAVE]] : [];
     });
 
     for (const region of enteredMacroRegions.concat(movedMacroRegions, leftMacroRegions)) {
