@@ -307,10 +307,14 @@ class MultilevelTokens {
       tokenY = r[1];
     }
 
-    let targetX = targetRegion.x +
-        (tokenX - sourceRegion.x) * (targetRegion.width / sourceRegion.width);
-    let targetY = targetRegion.y +
-        (tokenY - sourceRegion.y) * (targetRegion.height / sourceRegion.height);
+    const px = (tokenX - sourceRegion.x) * (targetRegion.width / sourceRegion.width);
+    const py = (tokenY - sourceRegion.y) * (targetRegion.height / sourceRegion.height);
+    let targetX = this._hasRegionFlag(targetRegion, "flipX")
+        ? targetRegion.x + targetRegion.width - px
+        : targetRegion.x + px;
+    let targetY = this._hasRegionFlag(targetRegion, "flipY")
+        ? targetRegion.y + targetRegion.height - py
+        : targetRegion.y + py;
     if (targetRegion.rotation) {
       const r = this._rotate(targetRegion.x + targetRegion.width / 2, targetRegion.y + targetRegion.height / 2,
                              targetX, targetY, targetRegion.rotation);
