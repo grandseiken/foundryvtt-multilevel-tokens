@@ -245,6 +245,13 @@ class MultilevelTokens {
     };
   }
 
+  _getTokenPositionFromCentre(scene, token, centre) {
+    return {
+      x: centre.x - token.width * scene.data.grid / 2,
+      y: centre.y - token.height * scene.data.grid / 2
+    }
+  }
+
   _isTokenInRegion(scene, token, region) {
     let centre = this._getTokenCentre(scene, token);
     if (region.rotation) {
@@ -297,18 +304,16 @@ class MultilevelTokens {
            containingToken.y <= point.y && point.y <= containingToken.y + (containingToken.height * scene.data.grid);
   }
 
-  _mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion) {
-    let tokenX = token.x + token.width * sourceScene.data.grid / 2;
-    let tokenY = token.y + token.height * sourceScene.data.grid / 2;
+  _mapPosition(point, sourceRegion, targetRegion) {
     if (sourceRegion.rotation) {
       const r = this._rotate(sourceRegion.x + sourceRegion.width / 2, sourceRegion.y + sourceRegion.height / 2,
-                             tokenX, tokenY, -sourceRegion.rotation);
-      tokenX = r[0];
-      tokenY = r[1];
+                             point.x, point.y, -sourceRegion.rotation);
+      point.x = r[0];
+      point.y = r[1];
     }
 
-    const px = (tokenX - sourceRegion.x) * (targetRegion.width / sourceRegion.width);
-    const py = (tokenY - sourceRegion.y) * (targetRegion.height / sourceRegion.height);
+    const px = (point.x - sourceRegion.x) * (targetRegion.width / sourceRegion.width);
+    const py = (point.y - sourceRegion.y) * (targetRegion.height / sourceRegion.height);
     let targetX = this._hasRegionFlag(targetRegion, "flipX")
         ? targetRegion.x + targetRegion.width - px
         : targetRegion.x + px;
@@ -322,9 +327,14 @@ class MultilevelTokens {
       targetY = r[1];
     }
     return {
-      x: targetX - token.width * targetScene.data.grid / 2,
-      y: targetY - token.height * targetScene.data.grid / 2
+      x: targetX,
+      y: targetY,
     };
+  }
+
+  _mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion) {
+    return this._getTokenPositionFromCentre(targetScene, token,
+        this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion));
   }
 
   _getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion) {
@@ -333,8 +343,7 @@ class MultilevelTokens {
   }
 
   _getReplicatedTokenCreateData(sourceScene, token, sourceRegion, targetScene, targetRegion) {
-    const targetPosition =
-        this._mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion);
+    const targetPosition = this._mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion);
     const targetScaleFactor = this._getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion);
 
     const tintRgb = token.tint ? hexToRGB(colorStringToHex(token.tint)) : [1., 1., 1.];
@@ -767,7 +776,7 @@ class MultilevelTokens {
       for (const adjacentRegion of adjacentLevelRegions) {
         for (const sourceStairToken of sourceStairTokens) {
           // Check if our token, when moved to the other level's region, would overlap a stair token.
-          const targetPosition = this._mapTokenPosition(scene, sourceStairToken, levelRegion, scene, adjacentRegion);
+          const targetPosition = this._mapPosition(this._getTokenCentre(scene, token), levelRegion, adjacentRegion);
           const linkedStairToken = allStairTokens.find(t => this._isPointInToken(scene, targetPosition, t));
           if (linkedStairToken) {
             targetStairTokens.push(linkedStairToken);
