@@ -599,8 +599,24 @@ class MultilevelTokens {
 
   _setLastTeleport(scene, token) {
     if (game.user.isGM) {
-      this._lastTeleport[token._id] =
-          this._getFlaggedRegionsContainingToken(scene, token, ["in", "out"]).map(r => r._id);
+      const teleportRegions = this._getFlaggedRegionsContainingToken(scene, token, ["in", "out"]);
+      if (teleportRegions.length) {
+        this._lastTeleport[token._id] = teleportRegions.map(r => r._id);
+      } else {
+        delete this._lastTeleport[token._id];
+      }
+    }
+  }
+
+  _initializeLastTeleportAndMacroTracking() {
+    if (game.user.isGM) {
+      game.scenes.forEach(scene => scene.data.tokens.forEach(token => {
+        this._setLastTeleport(scene, token);
+        const macroRegions = this._getFlaggedRegionsContainingToken(scene, token, ["macroEnter", "macroLeave", "macroMove"]);
+        if (macroRegions.length) {
+          this._lastMacro[token._id] = macroRegions.map(r => r._id);
+        }
+      }));
     }
   }
 
@@ -608,10 +624,22 @@ class MultilevelTokens {
     if (!game.user.isGM) {
       return;
     }
-    const macroRegions = this._getFlaggedRegionsContainingToken(scene, token, "macroEnter");
-    const enteredMacroRegions = macroRegions.filter(r =>
-        !(token._id in this._lastMacro && this._lastMacro[token._id].includes(r._id)));
-    this._lastMacro[token._id] = macroRegions.map(r => r._id);
+    const currentMacroRegions = this._getFlaggedRegionsContainingToken(scene, token, ["macroEnter", "macroLeave", "macroMove"]);
+    const previousMacroRegionIds = this._lastMacro[token._id] || [];
+
+    const enteredMacroRegions = currentMacroRegions.filter(r => !previousMacroRegionIds.includes(r._id));
+    const movedMacroRegions = currentMacroRegions.filter(r => previousMacroRegionIds.includes(r._id));
+    const leftMacroRegions = previousMacroRegionIds.filter(id => !currentMacroRegions.some(r => r._id === id))
+        .flatMap(id => {
+          const r = scene.data.drawings.find(r._id === id);
+          return r ? [r] : [];
+        });
+
+    if (currentMacroRegions.length) {
+      this._lastMacro[token._id] = currentMacroRegions.map(r => r._id);
+    } else {
+      delete this._lastMacro[token._id];
+    }
     if (!this._isPrimaryGamemaster()) {
       return false;
     }
@@ -1109,6 +1137,9 @@ class MultilevelTokens {
     if (this._isOnlyGamemaster()) {
       this._migrateRegions();
       this.refreshAll();
+    }
+    if (game.user.isGM) {
+      this._initializeLastTeleportAndMacroTracking();
     }
   }
 
