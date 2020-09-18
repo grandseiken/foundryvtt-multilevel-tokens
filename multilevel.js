@@ -1126,9 +1126,19 @@ class MultilevelTokens {
         manualText = false;
       }
     }
-    const oldFlags = "flags" in data && MLT.SCOPE in data.flags ? data.flags[MLT.SCOPE] : {};
-    if (!manualText && "flags" in update && MLT.SCOPE in update.flags &&
-        (this._flagsToLabel(oldFlags) === data.text || !data.text)) {
+
+    if (!update.flags || !update.flags[MLT.SCOPE]) {
+      return;
+    }
+    const flags = update.flags[MLT.SCOPE];
+    const oldFlags = data.flags && data.flags[MLT.SCOPE] ? data.flags[MLT.SCOPE] : {};
+
+    if (flags.in || flags.out || flags.source || flags.target ||
+        flags.macroEnter || flags.macroLeave || flags.macroMove || flags.level) {
+      update.hidden = true;
+    }
+
+    if (!manualText && (this._flagsToLabel(oldFlags) === data.text || !data.text)) {
       const mergedFlags = Object.assign(duplicate(oldFlags), update.flags[MLT.SCOPE]);
       const text = this._flagsToLabel(mergedFlags);
       if (text) {
