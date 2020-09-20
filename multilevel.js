@@ -1153,10 +1153,7 @@ class MultilevelTokens {
 
     if (!manualText && (this._flagsToLabel(oldFlags) === data.text || !data.text)) {
       const mergedFlags = Object.assign(duplicate(oldFlags), update.flags[MLT.SCOPE]);
-      const text = this._flagsToLabel(mergedFlags);
-      if (text) {
-        update.text = text;
-      }
+      update.text = this._flagsToLabel(mergedFlags);
     }
   }
 

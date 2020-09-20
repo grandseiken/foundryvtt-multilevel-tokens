@@ -5,11 +5,11 @@ This module for FoundryVTT adds several helpful token automation features, parti
 * Clone tokens from one region to another, syncing movement and other property updates (e.g. allowing players to "see" what is happening on floors below).
 * Trigger macros when a token enters or leaves a particular region.
 
-![Killer demonstration][demo/todo.gif]
+![Demonstration](demo/demo.gif)
 
-All of the features work using Foundry's built in drawing tools. A new tab in the **Drawing Configuration** window for any rectangle, ellipse or polygon drawing allows the designated region to be configured with special behaviour.
+All of the features work using Foundry's built in drawing tools. A new tab in the **Drawing Configuration** window for any rectangle, ellipse or polygon drawing allows the designated region to be configured with special behaviour:
 
-![Show menu][demo/todo.gif]
+![Configuration menu example](demo/menu.gif)
 
 ## Installation
 
@@ -28,15 +28,13 @@ Remember to enable the module in the **Manage Modules** menu after installation.
 * Drawings configured in this way are automatically hidden from your players and given a descriptive label for visual identification; these settings can be manually overridden.
 * A GM user must be logged in to your Foundry instance for the module to function. The module works by watching for updates on the GM's client and issuing commands with GM permissions in the background, so it can't function without the GM present.
 
-![Config example][demo/todo.gif]
-
 ## Creating teleport regions
 
 To create a teleport, you need at least two regions with the same **Teleport identifier**. The **In** box should be checked for teleport starting locations, and the **Out** box for teleport destinations. Any token that moves into an **In** region will be teleported to an **Out** region with a matching identifier. If there is more than one such destination region, one will be chosen randomly.
 
 You can check both the **In** and **Out** boxes (on two regions with the same identifier) to create a two-way teleport.
 
-![Teleport example](demo/todo.gif)
+![Teleport example](demo/teleport.gif)
 
 ### Notes
 
@@ -51,11 +49,11 @@ To set up token cloning, you'll need at least two regions with the same **Clone 
 
 For example, for the typical case of making tokens on the floor below visible from a balcony above, you could create a **Source** region covering the part of the lower level that's visible from above, and a **Target** region in the corresponding "empty space" area of the upper level.
 
-![Example image](demo/todo.gif)
-
 You can check both the **Source** and **Target** boxes (on two regions with the same identifier) to clone tokens in both directions.
 
 Cloned tokens behave a little differently from regular tokens. They can't be moved or deleted independently; they don't have a linked actor, aren't controlled by a player, and don't have vision. By default, they have an extra tint color applied to make them easily distinguishable. They inherit most other properties (visibility, size, name, disposition, and so on) from the original token. Any update made to the original token will be synced to its clones.
+
+![Token cloning example](demo/cloning.gif)
 
 ### Notes
 
@@ -65,9 +63,7 @@ Cloned tokens behave a little differently from regular tokens. They can't be mov
 * You can have more than one **Target** region with the same identifier: tokens in matching **Source** region(s) will be cloned to all of them.
 * You can have more than one **Source** region with the same identifier: tokens in all of them will be cloned to matching **Target** region(s).
 * By default, chat bubbles and player targeting will also be synced between a token and its clones. You can disable either of these options in the **Module Settings** if they cause issues.
-* several additional properties are available in the configuration tab for **Target** regions in particular: you can change the tint colour applied to tokens cloned into the region, or choose to mirror the positions of then cloned tokens horizontally or vertically within the region.
-
-![Example image](demo/todo.gif)
+* several additional properties are available in the configuration tab for **Target** regions in particular: you can change the tint colour applied to tokens cloned into the region, or choose to mirror the positions of the cloned tokens horizontally or vertically within the region.
 
 ## Creating level-based teleports
 
@@ -77,7 +73,7 @@ To use this method, create a region with the **Level** box checked and an approp
 
 When a token moves onto a **@stairs** token, it will be teleported to the location of any corresponding **@stairs** token in the same relative position within a **Level** region (on the same scene) one level above or below, if one exists. Note that careful placement is necessary here, so it's recommended to make the **Level** regions exactly the same size and enable snap-to-grid.
 
-![Example animation](demo/todo.gif)
+![Level-based teleports example](demo/levels.gif)
 
 ## Creating macro trigger regions
 
@@ -85,9 +81,9 @@ You can run a specific macro whenever a token enters, leaves, or moves within a 
 
 Three checkboxes determine which type of events will cause the macro to be triggered:
 
-* If **Trigger on enter** is checked, the macro will be triggered whenever a token moves into the region from outside;
-* if **Trigger on leave** is checked, the macro will be triggered whenever a token moves out of the region from inside;
-* if **Trigger on move** is checked, the macro will be triggered whenever a token moves from one point inside the region to another point that is also inside it.
+* If **Trigger on enter** is checked, the macro will be triggered whenever a token moves into the region from outside.
+* If **Trigger on leave** is checked, the macro will be triggered whenever a token moves out of the region from inside.
+* If **Trigger on move** is checked, the macro will be triggered whenever a token moves from one point inside the region to another point that is also inside it.
 
 The **Macro name** field should be set to the name of the macro to be executed. The macro must have been created by a GM user.
 
@@ -135,6 +131,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
   * Clone target regions can now be configured to mirror token positions horizontally or vertically.
   * Macro regions now support passing a fixed set of additional arguments to the macro when triggered, available in the new `args` variable.
   * Macro regions now support also triggering the macro when a token leaves the region, or whenever a token moves within it. Each of the triggers can be enabled or disabled for a region individually. A new `event` variable available to the macro describes which type of event occurred.
+  * Fixed that the `Drawing` and `Token` objects provided to macros triggered by macro regions would not be correctly associated with a `Scene`, causing e.g. their `update()` methods to misfunction, if the GM was viewing a different scene when the region was triggered.
+  * Regions can now be temporarily disabled with a new checkbox in the configuration menu.
 * **0.4.1**:
   * Fixed a floating-point accuracy issue that sometimes led to level-based teleports with `@stairs` tokens not functioning.
 * **0.4.0**:
