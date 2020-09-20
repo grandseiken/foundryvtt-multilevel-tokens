@@ -1,13 +1,13 @@
 {
   "name": "multilevel-tokens",
   "title": "Multilevel Tokens",
-  "description": "<p>Allows you to mark out linked regions on the map. Tokens present in the source region will be automatically cloned to the target region, and kept up-to-date with the original, mirroring movement and other changes.</p><p>Ideal for multi-level maps, for example so that tokens on a floor below are visible from a balcony above, and more!</p><p>Also adds a simple token teleportation system that works in a similar way.</p><p>See page at URL below for full usage instructions.</p>",
+  "description": "<p>Adds several helpful token automation features, particularly (but not only) suited to maps with multiple levels.</p><p>Teleport tokens to another location when they move into a particular region (e.g. from the bottom of a staircase to the top). Clone tokens from one region to another, syncing movement and other property updates (e.g. allowing players to \"see\" what is happening on floors below). Trigger macros when a token enters or leaves a particular region.</p><p>See page at URL below for full usage instructions.</p>",
   "author": "grandseiken",
   "version": "1.0.0",
   "minimumCoreVersion": "0.6.0",
   "compatibleCoreVersion": "0.6.6",
   "scripts": ["multilevel.js"],
   "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",
-  "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/develop/module.json",
-  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/develop.zip"
+  "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/master/module.json",
+  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v1.0.0.zip"
 }
