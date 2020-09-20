@@ -162,7 +162,7 @@ class MultilevelTokens {
       return false;
     }
     flags = flags[MLT.SCOPE];
-    return flags && (flagNames.constructor === Array
+    return flags && !flags.disabled && (flagNames.constructor === Array
         ? flagNames.some(f => flags[f] ? true : false)
         : flags[flagNames] ? true : false);
   }
@@ -176,7 +176,7 @@ class MultilevelTokens {
       return null;
     }
     flags = flags[MLT.SCOPE];
-    return flags ? flags[flagName] : null;
+    return flags && !flags.disabled ? flags[flagName] : null;
   }
 
   _isReplicatedToken(token) {
@@ -690,8 +690,8 @@ class MultilevelTokens {
         const outerToken = token;
         const outerRegion = region;
         {
-          const token = canvas.tokens.get(outerToken._id) || new Token(outerToken);
-          const region = canvas.drawings.get(outerRegion[0]._id) || new Drawing(outerRegion[0]);
+          const token = canvas.tokens.get(outerToken._id) || new Token(outerToken, scene);
+          const region = canvas.drawings.get(outerRegion[0]._id) || new Drawing(outerRegion[0], scene);
           const event = outerRegion[1];
           const args = this._getMacroArgs(outerRegion[0]);
           try {
@@ -901,12 +901,14 @@ class MultilevelTokens {
 
   _flagsToLabel(flags) {
     let lines = [];
+    if (flags.disabled) {
+      lines.push("🗙");
+    }
     if (flags.in || flags.out) {
       lines.push((flags.in ? "▶ " : "") + flags.teleportId + (flags.out ? " ▶" : ""));
     }
     if (flags.source || flags.target) {
-      // TODO: clearer icons.
-      lines.push((flags.source ? "▣" : "") + (flags.target ? "□" : "") + " " + flags.cloneId);
+      lines.push((flags.source && flags.target ? "🞖" : flags.source ? "🞕" : "◻") + " " + flags.cloneId);
     }
     if (flags.macroEnter || flags.macroLeave || flags.macroMove) {
       lines.push("✧ " + flags.macroName);
@@ -1020,6 +1022,12 @@ class MultilevelTokens {
         <label for="mltLevelNumber">Level number</label>
         <input type="text" name="mltLevelNumber" value="0" data-dtype="Number"/>
       </div>
+      <hr>
+      <div class="form-group">
+        <label for="mltDisabled">Disable region</label>
+        <input type="checkbox" name="mltDisabled" data-dtype="Boolean"/>
+        <p class="notes">Temporarily disable all automation features for this region.</p>
+      </div>
     </div>`;
 
     html.find(".tabs .item").last().after(tab);
@@ -1046,6 +1054,7 @@ class MultilevelTokens {
     input("mltLevel").prop("checked", flags.level);
     input("mltLevelNumber").prop("value", flags.levelNumber || 0);
     input("mltLocal").prop("checked", flags.local);
+    input("mltDisabled").prop("checked", flags.disabled);
 
     const isChecked = name => input(name).is(":checked");
     const enable = (name, enabled) => input(name).prop("disabled", !enabled);
@@ -1078,12 +1087,15 @@ class MultilevelTokens {
   }
 
   _convertDrawingConfigUpdateData(data, update) {
-    if (!("mltIn" in update)) {
+    if (!("mltIn" in update) && (!update.flags || !update.flags[MLT.SCOPE])) {
       return;
     }
 
     delete update["mltTintColorPicker"];
     const convertFlag = (inputName, flagName) => {
+      if (!(inputName in update)) {
+        return;
+      }
       if (!data.flags || !data.flags[MLT.SCOPE] || data.flags[MLT.SCOPE][flagName] !== update[inputName]) {
         if (!update.flags) {
           update.flags = {};
@@ -1114,6 +1126,7 @@ class MultilevelTokens {
     convertFlag("mltLevel", "level");
     convertFlag("mltLevelNumber", "levelNumber");
     convertFlag("mltLocal", "local");
+    convertFlag("mltDisabled", "disabled");
 
     let manualText = "text" in update && update.text;
     if (manualText) {

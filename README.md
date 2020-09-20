@@ -102,6 +102,16 @@ Script macros will be executed by the GM whenever one of the chosen events occur
 
 Note that script macros triggered in this way run on the GM's client, and the GM might not currently be viewing the scene in question. In this case, the `Drawing` and `Token` objects mentioned above will be temporary objects created purely for the macro's execution, rather than the currently-visible ones found in `canvas.tokens` and `canvas.drawings`.
 
+## Enabling and disabling regions
+
+Any automation region can be temporarily disabled by checking the **Disable region** box in the configuration tab. This can be useful if you want to set automation up in advance, but only enable it when needed.
+
+You can also enable or disable an automation region from e.g. a macro. The flag is stored in `data.flags["multilevel-tokens"].disabled`. With a `Drawing` object stored in the variable `drawing`, the following snippet would toggle the region between enabled and disabled:
+
+```
+drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["multilevel-tokens"].disabled}}});
+```
+
 ## Troubleshooting
 
 * Drawings need to have been _created_ by a user with the `GAMEMASTER` role in order to function as automation regions and provide the **Multilevel** configuration tab.
