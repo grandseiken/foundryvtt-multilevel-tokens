@@ -58,16 +58,16 @@ class MltRequestBatch {
 class MultilevelTokens {
   constructor() {
     game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_TARGET, {
-      name: "Auto-sync player targets",
-      hint: "If checked, targeting or detargeting a token will also target or detarget its clones (or originals). Turn this off if it interferes with things.",
+      name: game.i18n.localize("MLT.SettingAutoSyncTargets"),
+      hint: game.i18n.localize("MLT.SettingAutoSyncTargetsHint"),
       scope: "world",
       config: true,
       type: Boolean,
       default: true
     });
     game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_CHAT_BUBBLE, {
-      name: "Auto-sync chat bubbles",
-      hint: "If checked, chat bubbles for a token will also be shown on its clones (or originals).",
+      name: game.i18n.localize("MLT.SettingAutoSyncChatBubbles"),
+      hint: game.i18n.localize("MLT.SettingAutoSyncChatBubblesHint"),
       scope: "world",
       config: true,
       type: Boolean,
@@ -76,8 +76,8 @@ class MultilevelTokens {
     // TODO: maybe be necessary to decide this on a module-by-module basis. Could provide a way to let the user decide,
     // and / or just bake in defaults for known cases where it matters.
     game.settings.register(MLT.SCOPE, MLT.SETTING_CLONE_MODULE_FLAGS, {
-      name: "Clone token flags set by other modules",
-      hint: "Modules can set custom flags on tokens for their own use. If checked, cloned tokens will inherit such flags from the original. Since the purpose of these flags depends on the module in question, I can't tell you what this option will do, but if cloned tokens are interacting poorly with some other module, you can try changing it.",
+      name: game.i18n.localize("MLT.SettingCloneModuleFlags"),
+      hint: game.i18n.localize("MLT.SettingCloneModuleFlagsHint"),
       scope: "world",
       config: true,
       type: Boolean,
@@ -925,108 +925,118 @@ class MultilevelTokens {
       flags = data.object.flags[MLT.SCOPE];
     }
 
-    const tab = `<a class="item" data-tab="multilevel-tokens"><i class="fas fa-building"></i> Multilevel</a>`;
+    const tab = `<a class="item" data-tab="multilevel-tokens">
+      <i class="fas fa-building"></i> ${game.i18n.localize("MLT.TabTitle")}
+    </a>`;
     const contents = `
     <div class="tab" data-tab="multilevel-tokens">
-      <p class="notes">Use this Drawing to define a region for automation with Multilevel Tokens.</p>
+      <p class="notes">${game.i18n.localize("MLT.TabNotes")}</p>
       <hr>
-      <h3 class="form-header"><i class="fas fa-random"/></i> Teleports</h3>
-      <p class="notes">Tokens moving into an <b>In</b> region will be teleported to an <b>Out</b> region with a matching identifier.</p>
+      <h3 class="form-header">
+        <i class="fas fa-random"/></i> ${game.i18n.localize("MLT.SectionTeleports")}
+      </h3>
+      <p class="notes">${game.i18n.localize("MLT.SectionTeleportsNotes")}</p>
       <div class="form-group">
-        <label for="mltIn">In</label>
+        <label for="mltIn">${game.i18n.localize("MLT.FieldIn")}</label>
         <input type="checkbox" name="mltIn" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltOut">Out</label>
+        <label for="mltOut">${game.i18n.localize("MLT.FieldOut")}</label>
         <input type="checkbox" name="mltOut" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltTeleportId">Teleport identifier</label>
+        <label for="mltTeleportId">${game.i18n.localize("MLT.FieldTeleportId")}</label>
         <input type="text" name="mltTeleportId" data-dtype="String"/>
       </div>
       <div class="form-group">
-        <label for="mltOut">Animate movement</label>
+        <label for="mltAnimate">${game.i18n.localize("MLT.FieldAnimateMovement")}</label>
         <input type="checkbox" name="mltAnimate" data-dtype="Boolean"/>
       </div>
       <hr>
       <div class="form-group">
-        <label for="mltLocal">Scene-local</label>
+        <label for="mltLocal">${game.i18n.localize("MLT.FieldSceneLocal")}</label>
         <input type="checkbox" name="mltLocal" data-dtype="Boolean"/>
-        <p class="notes">Restrict teleport and cloning regions to match only with other regions on the same scene.
+        <p class="notes">${game.i18n.localize("MLT.FieldSceneLocalNotes")}</p>
       </div>
       <hr>
-      <h3 class="form-header"><i class="far fa-clone"/></i> Token cloning</h3>
-      <p class="notes">Tokens will be cloned from <b>Source</b> regions to any <b>Target</b> regions with matching identifiers.</p>
+      <h3 class="form-header">
+        <i class="far fa-clone"/></i> ${game.i18n.localize("MLT.SectionTokenCloning")}
+      </h3>
+      <p class="notes">${game.i18n.localize("MLT.SectionTokenCloningNotes")}</p>
       <div class="form-group">
-        <label for="mltSource">Source</label>
+        <label for="mltSource">${game.i18n.localize("MLT.FieldSource")}</label>
         <input type="checkbox" name="mltSource" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltTarget">Target</label>
+        <label for="mltTarget">${game.i18n.localize("MLT.FieldTarget")}</label>
         <input type="checkbox" name="mltTarget" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltCloneId">Clone identifier</label>
+        <label for="mltCloneId">${game.i18n.localize("MLT.FieldCloneId")}</label>
         <input type="text" name="mltCloneId" data-dtype="String"/>
       </div>
       <hr>
-      <p class="notes">Settings for cloned tokens created by this Target region.
+      <p class="notes">${game.i18n.localize("MLT.SectionTargetRegionNotes")}</p>
       <div class="form-group">
-        <label for="mltTintColor">Tint color for cloned tokens</label>
+        <label for="mltTintColor">${game.i18n.localize("MLT.FieldClonedTokenTintColor")}</label>
         <div class="form-fields">
           <input class="color" type="text" name="mltTintColor">
           <input type="color" name="mltTintColorPicker" data-edit="mltTintColor">
         </div>
       </div>
       <div class="form-group">
-        <label for="mltFlipX">Mirror horizontally</label>
+        <label for="mltFlipX">${game.i18n.localize("MLT.FieldMirrorHorizontally")}</label>
         <input type="checkbox" name="mltFlipX" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltFlipY">Mirror vertically</label>
+        <label for="mltFlipY">${game.i18n.localize("MLT.FieldMirrorVertically")}</label>
         <input type="checkbox" name="mltFlipY" data-dtype="Boolean"/>
       </div>
       <hr>
-      <h3 class="form-header"><i class="fas fa-magic"/></i> Macro triggers</h3>
-      <p class="notes">Trigger a macro when a token enters this region, leaves it, or moves within it. Within the macro, the variables <b>scene</b>, <b>region</b> and <b>token</b> give the <b>Scene</b>, <b>Drawing</b> and <b>Token</b> objects involved.</p>
+      <h3 class="form-header">
+        <i class="fas fa-magic"/></i> ${game.i18n.localize("MLT.SectionMacroTriggers")}
+      </h3>
+      <p class="notes">${game.i18n.localize("MLT.SectionMacroTriggersNotes")}</p>
       <div class="form-group">
-        <label for="mltMacroEnter">Trigger on enter</label>
+        <label for="mltMacroEnter">${game.i18n.localize("MLT.FieldTriggerOnEnter")}</label>
         <input type="checkbox" name="mltMacroEnter" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltMacroLeave">Trigger on leave</label>
+        <label for="mltMacroLeave">${game.i18n.localize("MLT.FieldTriggerOnLeave")}</label>
         <input type="checkbox" name="mltMacroLeave" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltMacroMove">Trigger on movement</label>
+        <label for="mltMacroMove">${game.i18n.localize("MLT.FieldTriggerOnMove")}</label>
         <input type="checkbox" name="mltMacroMove" data-dtype="Boolean"/>
       </div>
-      <p class="notes">Within the macro, the <b>event</b> variable will take one of the values <b>MLT.ENTER</b>, <b>MLT.LEAVE</b>, or <b>MLT.MOVE</b>.</p>
+      <p class="notes">${game.i18n.localize("MLT.SectionMacroEventsNotes")}</p>
       <div class="form-group">
-        <label for="mltMacroName">Macro name</label>
+        <label for="mltMacroName">${game.i18n.localize("MLT.FieldMacroName")}</label>
         <input type="text" name="mltMacroName" data-dtype="String"/>
       </div>
       <div class="form-group">
-        <label for="mltMacroName">Additional arguments</label>
-        <input type="text" name="mltMacroArgs" data-dtype="String"/></textarea>
-        <p class="notes">Comma-separated, available in the <b>args</b> variable within your macro.</p>
+        <label for="mltMacroName">${game.i18n.localize("MLT.FieldAdditionalArguments")}</label>
+        <input type="text" name="mltMacroArgs" data-dtype="String"/>
+        <p class="notes">${game.i18n.localize("MLT.FieldAdditionalArgumentsNotes")}</p>
       </div>
       <hr>
-      <h3 class="form-header"><i class="fas fa-bars"/></i> Levels</h3>
-      <p class="notes">Tokens moving onto a <b>@stairs</b> token will be teleported to any other <b>@stairs</b> token at the same relative position within a numerically-adjacent level region.</p>
+      <h3 class="form-header">
+        <i class="fas fa-bars"/></i> ${game.i18n.localize("MLT.SectionLevels")}
+      </h3>
+      <p class="notes">${game.i18n.localize("MLT.SectionLevelsNotes")}</p>
       <div class="form-group">
-        <label for="mltLevel">Level region</label>
+        <label for="mltLevel">${game.i18n.localize("MLT.FieldLevelRegion")}</label>
         <input type="checkbox" name="mltLevel" data-dtype="Boolean"/>
       </div>
       <div class="form-group">
-        <label for="mltLevelNumber">Level number</label>
+        <label for="mltLevelNumber">${game.i18n.localize("MLT.FieldLevelNumber")}</label>
         <input type="text" name="mltLevelNumber" value="0" data-dtype="Number"/>
       </div>
       <hr>
       <div class="form-group">
-        <label for="mltDisabled">Disable region</label>
+        <label for="mltDisabled">${game.i18n.localize("MLT.FieldDisableRegion")}</label>
         <input type="checkbox" name="mltDisabled" data-dtype="Boolean"/>
-        <p class="notes">Temporarily disable all automation features for this region.</p>
+        <p class="notes">${game.i18n.localize("MLT.FieldDisableRegionNotes")}</p>
       </div>
     </div>`;
 
