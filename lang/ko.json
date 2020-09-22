@@ -16,7 +16,7 @@
   "MLT.FieldSceneLocal": "씬-로컬",
   "MLT.FieldSceneLocalNotes": "순간이동 및 복제 영역은 동일한 씬의 다른 영역들에게만 일치하도록 제한한다.",
   "MLT.SectionTokenCloning": "토큰 복제",
-  "MLT.SectionTokenCloningNotes": "<b>원본</b> 영역에 있는 토큰들은 수정자가 일치하는 <b>대상</b> 영역에 복제된다..",
+  "MLT.SectionTokenCloningNotes": "<b>원본</b> 영역에 있는 토큰들은 수정자가 일치하는 <b>대상</b> 영역에 복제된다.",
   "MLT.FieldSource": "원본",
   "MLT.FieldTarget": "대상",
   "MLT.FieldCloneId": "복제 수정자",

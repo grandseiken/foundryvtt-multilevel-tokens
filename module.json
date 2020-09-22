@@ -12,6 +12,11 @@
       "lang": "en",
       "name": "English",
       "path": "lang/en.json"
+    },
+    {
+      "lang": "ko",
+      "name": "한국어",
+      "path": "lang/ko.json"
     }
   ],
   "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",

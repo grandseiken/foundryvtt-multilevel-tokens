@@ -652,12 +652,12 @@ class MultilevelTokens {
         promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateInstant,
                                                                 Object.assign({diff: true, animate: false}, options)));
       }
-      if (data.updateDrawing.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Drawing.embeddedName, data.updateDrawing,
-                                                                Object.assign({diff: true}, options)));
-      }
       if (data.updateTile.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Tile.embeddedName, data.updateTile,
+                                                                Object.assign({diff: true}, options)));
+      }
+      if (data.updateDrawing.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Drawing.embeddedName, data.updateDrawing,
                                                                 Object.assign({diff: true}, options)));
       }
       if (data.updateLight.length) {
