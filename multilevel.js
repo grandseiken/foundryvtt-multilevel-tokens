@@ -135,7 +135,7 @@ class MultilevelTokens {
 
   _isUserGamemaster(userId) {
     const user = game.users.get(userId);
-    return user ? user.role === CONST.USER_ROLES.GAMEMASTER : false;
+    return user ? user.role === CONST.USER_ROLES.GAMEMASTER : true;
   }
 
   _getActiveGamemasters() {
