@@ -120,6 +120,10 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.1.0**:
+  * Module now allows for localization; contributions extremely welcome!
+  * Added Korean translation (contributed by KLO).
+  * Where possible, moving a source or target region will now cause cloned tokens to move to their new correct positions, rather than being deleted and recreated.
 * **1.0.0**:
   * Overhauled the user interface to make the module easier to use. Regions are now configured using a dedicated interface within a tab in the Drawing Configuration window for any applicable drawing. It's no longer necessary to add text labels containing special syntax to each drawing.
   * Short descriptive labels are still added (automatically) to each region for clarity, but have no special meaning. They can be overridden by editing the label text manually.
