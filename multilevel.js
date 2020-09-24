@@ -42,6 +42,10 @@ class MltRequestBatch {
     this._scene(scene).updateTile.push(data);
   }
 
+  updateWall(scene, data) {
+    this._scene(scene).updateWall.push(data);
+  }
+
   updateLight(scene, data) {
     this._scene(scene).updateLight.push(data);
   }
@@ -62,6 +66,7 @@ class MltRequestBatch {
         updateInstant: [],
         updateDrawing: [],
         updateTile: [],
+        updateWall: [],
         updateLight: [],
         updateSound: [],
         delete: []};
@@ -654,6 +659,10 @@ class MultilevelTokens {
       }
       if (data.updateTile.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Tile.embeddedName, data.updateTile,
+                                                                Object.assign({diff: true}, options)));
+      }
+      if (data.updateWall.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Wall.embeddedName, data.updateWall,
                                                                 Object.assign({diff: true}, options)));
       }
       if (data.updateDrawing.length) {
