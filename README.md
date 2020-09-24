@@ -120,6 +120,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.2.0**:
+  * Added French translation (contributed by Meï#4242).
 * **1.1.0**:
   * Module now allows for localization; contributions extremely welcome!
   * Added Korean translation (contributed by KLO).

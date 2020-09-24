@@ -3,7 +3,7 @@
   "title": "Multilevel Tokens",
   "description": "<p>Adds several helpful token automation features, particularly (but not only) suited to maps with multiple levels.</p><p>Teleport tokens to another location when they move into a particular region (e.g. from the bottom of a staircase to the top). Clone tokens from one region to another, syncing movement and other property updates (e.g. allowing players to \"see\" what is happening on floors below). Trigger macros when a token enters or leaves a particular region.</p><p>See page at URL below for full usage instructions.</p>",
   "author": "grandseiken",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "minimumCoreVersion": "0.6.0",
   "compatibleCoreVersion": "0.6.6",
   "scripts": ["multilevel.js"],
@@ -12,6 +12,11 @@
       "lang": "en",
       "name": "English",
       "path": "lang/en.json"
+    },
+    {
+      "lang": "fr",
+      "name": "French",
+      "path": "lang/fr.json"
     },
     {
       "lang": "ko",
