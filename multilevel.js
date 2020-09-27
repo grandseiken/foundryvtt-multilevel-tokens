@@ -376,8 +376,12 @@ class MultilevelTokens {
   }
 
   _getReplicatedTokenCreateData(sourceScene, token, sourceRegion, targetScene, targetRegion) {
+    // TODO: handle different grid scales, token etc properly. If target scene is different grid size, position isn't exactly correct.
+    // Should line things up so token exactly on edge of source is always exactly on edge of target, etc.
+    // Also scale using .width and .height instead of scale so that different aspect ratios do the right thing.
     const targetPosition = this._mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion);
-    const targetScaleFactor = this._getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion);
+    const targetScaleFactor = (this._getRegionFlag(targetRegion, "scale") || 1) *
+        this._getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion);
 
     const tintRgb = token.tint ? hexToRGB(colorStringToHex(token.tint)) : [1., 1., 1.];
     const multRgb = hexToRGB(colorStringToHex(
@@ -1091,6 +1095,10 @@ class MultilevelTokens {
         </div>
       </div>
       <div class="form-group">
+        <label for="mltScale">${game.i18n.localize("MLT.FieldClonedTokenScale")}</label>
+        <input type="text" name="mltScale" value="1" data-dtype="Number"/>
+      </div>
+      <div class="form-group">
         <label for="mltFlipX">${game.i18n.localize("MLT.FieldMirrorHorizontally")}</label>
         <input type="checkbox" name="mltFlipX" data-dtype="Boolean"/>
       </div>
@@ -1160,6 +1168,7 @@ class MultilevelTokens {
     input("mltCloneId").prop("value", flags.cloneId);
     input("mltTintColor").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
     input("mltTintColorPicker").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
+    input("mltScale").prop("value", flags.scale || 1);
     input("mltFlipX").prop("checked", flags.flipX);
     input("mltFlipY").prop("checked", flags.flipY);
     input("mltMacroEnter").prop("checked", flags.macroEnter);
@@ -1186,6 +1195,7 @@ class MultilevelTokens {
       enable("mltCloneId", isSource || isTarget);
       enable("mltTintColor", isTarget);
       enable("mltTintColorPicker", isTarget);
+      enable("mltScale", isTarget);
       enable("mltFlipX", isTarget);
       enable("mltFlipY", isTarget);
       enable("mltMacroName", isMacro);
@@ -1232,6 +1242,7 @@ class MultilevelTokens {
     convertFlag("mltTarget", "target");
     convertFlag("mltCloneId", "cloneId");
     convertFlag("mltTintColor", "tintColor");
+    convertFlag("mltScale", "scale");
     convertFlag("mltFlipX", "flipX");
     convertFlag("mltFlipY", "flipY");
     convertFlag("mltMacroEnter", "macroEnter");
@@ -1262,6 +1273,9 @@ class MultilevelTokens {
     const flags = update.flags[MLT.SCOPE];
     const oldFlags = data.flags && data.flags[MLT.SCOPE] ? data.flags[MLT.SCOPE] : {};
 
+    if ("scale" in flags && (isNaN(flags.scale) || flags.scale <= 0)) {
+      flags.scale = 1;
+    }
     if (flags.in || flags.out || flags.source || flags.target ||
         flags.macroEnter || flags.macroLeave || flags.macroMove || flags.level) {
       update.hidden = true;

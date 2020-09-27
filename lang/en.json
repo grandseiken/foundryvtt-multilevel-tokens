@@ -22,6 +22,7 @@
   "MLT.FieldCloneId": "Clone identifier",
   "MLT.SectionTargetRegionNotes": "Settings for cloned tokens created by this Target region.",
   "MLT.FieldClonedTokenTintColor": "Tint color for cloned tokens",
+  "MLT.FieldClonedTokenScale": "Cloned token scaling factor",
   "MLT.FieldMirrorHorizontally": "Mirror horizontally",
   "MLT.FieldMirrorVertically": "Mirror vertically",
   "MLT.SectionMacroTriggers": "Macro triggers",
