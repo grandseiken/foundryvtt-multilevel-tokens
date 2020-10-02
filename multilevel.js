@@ -278,17 +278,27 @@ class MultilevelTokens {
     };
   }
 
-  _getTokenCentre(scene, token) {
+  _getSceneScaleFactor(scene) {
+    const hexScale = 2 / Math.sqrt(3);
     return {
-      x: token.x + token.width * scene.data.grid / 2,
-      y: token.y + token.height * scene.data.grid / 2
+      x: scene.data.gridType === GRID_TYPES.HEXODDR || scene.data.gridType === GRID_TYPES.HEXEVENR ? 1 : hexScale,
+      y: scene.data.gridType === GRID_TYPES.HEXODDQ || scene.data.gridType === GRID_TYPES.HEXEVENQ ? 1 : hexScale,
+    };
+  }
+
+  _getTokenCentre(scene, token) {
+    const s = this._getSceneScaleFactor(scene);
+    return {
+      x: token.x + token.width * s.x * scene.data.grid / 2,
+      y: token.y + token.height * s.y * scene.data.grid / 2
     };
   }
 
   _getTokenPositionFromCentre(scene, token, centre) {
+    const s = this._getSceneScaleFactor(scene);
     return {
-      x: centre.x - token.width * scene.data.grid / 2,
-      y: centre.y - token.height * scene.data.grid / 2
+      x: centre.x - token.width * s.x * scene.data.grid / 2,
+      y: centre.y - token.height * s.y * scene.data.grid / 2
     }
   }
 
@@ -365,16 +375,15 @@ class MultilevelTokens {
     return target;
   }
 
-  _getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion) {
-    return Math.min((targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
-                    (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid));
-  }
-
   _getReplicatedTokenCreateData(sourceScene, token, sourceRegion, targetScene, targetRegion) {
     const extraScale = this._getRegionFlag(targetRegion, "scale") || 1;
+    const sourceScale = this._getSceneScaleFactor(sourceScene);
+    const targetScale = this._getSceneScaleFactor(targetScene);
     const scale = {
-      x: extraScale * (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
-      y: extraScale * (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid),
+      x: extraScale * (sourceScale.x / targetScale.x) *
+            (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
+      y: extraScale * (sourceScale.y / targetScale.y) *
+            (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid),
     };
     const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
