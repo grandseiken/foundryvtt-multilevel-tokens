@@ -845,13 +845,25 @@ class MultilevelTokens {
       return false;
     }
 
-    const outRegion = outRegions[Math.floor(outRegions.length * Math.random())];
-    const position = this._getTokenPositionFromCentre(outRegion[1], token,
-        this._mapPosition(this._getTokenCentre(scene, token), inRegion, outRegion[2]));
+    const [_, outScene, outRegion] = outRegions[Math.floor(outRegions.length * Math.random())];
+    let position = this._getTokenPositionFromCentre(outScene, token,
+        this._mapPosition(this._getTokenCentre(scene, token), inRegion, outRegion));
+    if (this._hasRegionFlag(outRegion, "snapToGrid")) {
+      const options = {
+        dimensions: Canvas.getDimensions(outScene.data),
+        columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType),
+        even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType)
+      };
+      if (outScene.data.gridType === GRID_TYPES.SQUARE) {
+        position = new SquareGrid(options).getSnappedPosition(position.x, position.y);
+      } else if (outScene.data.gridType !== GRID_TYPES.GRIDLESS) {
+        position = new HexagonalGrid(options).getSnappedPosition(position.x, position.y);
+      }
+    }
     // TODO: wait for animation to complete before teleporting, if possible? This would avoid visual inconsistencies
     // where a token teleports before completing the move animation into the region.
-    if (outRegion[1] === scene) {
-      const animate = this._hasRegionFlag(inRegion, "animate") || this._hasRegionFlag(outRegion[2], "animate");
+    if (outScene === scene) {
+      const animate = this._hasRegionFlag(inRegion, "animate") || this._hasRegionFlag(outRegion, "animate");
       this._queueAsync(requestBatch => requestBatch.updateToken(scene, {
         _id: token._id,
         x: position.x,
@@ -874,9 +886,9 @@ class MultilevelTokens {
           return;
         }
         requestBatch.deleteToken(scene, id);
-        requestBatch.createToken(outRegion[1], data);
+        requestBatch.createToken(outScene, data);
         owners.forEach(user => {
-          requestBatch.extraAction(() => game.socket.emit("pullToScene", outRegion[1]._id, user._id));
+          requestBatch.extraAction(() => game.socket.emit("pullToScene", outScene._id, user._id));
         })
       });
     }
@@ -943,6 +955,8 @@ class MultilevelTokens {
       out: false,
       teleportId: undefined,
       animate: false,
+      activateViaMapNote: false,
+      snapToGrid: false,
       source: false,
       target: false,
       tintColor: MLT.DEFAULT_TINT_COLOR,
@@ -1071,9 +1085,20 @@ class MultilevelTokens {
         <label for="mltTeleportId">${game.i18n.localize("MLT.FieldTeleportId")}</label>
         <input type="text" name="mltTeleportId" data-dtype="String"/>
       </div>
+      <hr>
+      <div class="form-group">
+        <label for="mltSnapToGrid">${game.i18n.localize("MLT.FieldSnapToGrid")}</label>
+        <input type="checkbox" name="mltSnapToGrid" data-dtype="Boolean"/>
+        <p class="notes">${game.i18n.localize("MLT.FieldSnapToGridNotes")}</p>
+      </div>
       <div class="form-group">
         <label for="mltAnimate">${game.i18n.localize("MLT.FieldAnimateMovement")}</label>
         <input type="checkbox" name="mltAnimate" data-dtype="Boolean"/>
+      </div>
+      <div class="form-group">
+        <label for="mltActivateViaMapNote">${game.i18n.localize("MLT.FieldActivateViaMapNote")}</label>
+        <input type="checkbox" name="mltActivateViaMapNote" data-dtype="Boolean"/>
+        <p class="notes">${game.i18n.localize("MLT.FieldActivateViaMapNoteNotes")}</p>
       </div>
       <hr>
       <div class="form-group">
@@ -1176,6 +1201,8 @@ class MultilevelTokens {
     input("mltOut").prop("checked", flags.out);
     input("mltTeleportId").prop("value", flags.teleportId);
     input("mltAnimate").prop("checked", flags.animate);
+    input("mltActivateViaMapNote").prop("checked", flags.activateViaMapNote);
+    input("mltSnapToGrid").prop("checked", "snapToGrid" in flags ? flags.snapToGrid : true);
     input("mltSource").prop("checked", flags.source);
     input("mltTarget").prop("checked", flags.target);
     input("mltCloneId").prop("value", flags.cloneId);
@@ -1197,7 +1224,9 @@ class MultilevelTokens {
     const isChecked = name => input(name).is(":checked");
     const enable = (name, enabled) => input(name).prop("disabled", !enabled);
     const onChange = () => {
-      const isTeleport = isChecked("mltIn") || isChecked("mltOut");
+      const isIn = isChecked("mltIn");
+      const isOut = isChecked("mltOut");
+      const isTeleport = isIn || isOut;
       const isSource = isChecked("mltSource");
       const isTarget = isChecked("mltTarget");
       const isMacro = isChecked("mltMacroEnter") || isChecked("mltMacroLeave") || isChecked("mltMacroMove");
@@ -1205,6 +1234,8 @@ class MultilevelTokens {
 
       enable("mltTeleportId", isTeleport);
       enable("mltAnimate", isTeleport);
+      enable("mltActivateViaMapNote", isIn);
+      enable("mltSnapToGrid", isOut);
       enable("mltCloneId", isSource || isTarget);
       enable("mltTintColor", isTarget);
       enable("mltTintColorPicker", isTarget);
@@ -1251,6 +1282,8 @@ class MultilevelTokens {
     convertFlag("mltOut", "out");
     convertFlag("mltTeleportId", "teleportId");
     convertFlag("mltAnimate", "animate");
+    convertFlag("mltActivateViaMapNote", "activateViaMapNote");
+    convertFlag("mltSnapToGrid", "snapToGrid");
     convertFlag("mltSource", "source");
     convertFlag("mltTarget", "target");
     convertFlag("mltCloneId", "cloneId");
