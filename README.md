@@ -122,6 +122,9 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 * **1.3.0**:
   * Added Spanish translation (contributed by [Evolatum](https://github.com/Evolatum)).
+  * Clone target regions can now be configured to apply a scaling factor to the sizes of cloned tokens.
+  * The width and height of cloned tokens are now scaled independently if the source and target regions have different aspect ratios.
+  * Fixed that cloned tokens would be positioned slightly incorrectly across scenes with different grid sizes.
 * **1.2.0**:
   * Added French translation (contributed by [`Meï#4242`](https://github.com/MeixDev)).
 * **1.1.0**:

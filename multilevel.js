@@ -365,23 +365,18 @@ class MultilevelTokens {
     return target;
   }
 
-  _mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion) {
-    return this._getTokenPositionFromCentre(targetScene, token,
-        this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion));
-  }
-
   _getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion) {
     return Math.min((targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
-                    (targetRegion.height / targetScene.data.grid) / (sourceRegion.height/ sourceScene.data.grid));
+                    (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid));
   }
 
   _getReplicatedTokenCreateData(sourceScene, token, sourceRegion, targetScene, targetRegion) {
-    // TODO: handle different grid scales, token etc properly. If target scene is different grid size, position isn't exactly correct.
-    // Should line things up so token exactly on edge of source is always exactly on edge of target, etc.
-    // Also scale using .width and .height instead of scale so that different aspect ratios do the right thing.
-    const targetPosition = this._mapTokenPosition(sourceScene, token, sourceRegion, targetScene, targetRegion);
-    const targetScaleFactor = (this._getRegionFlag(targetRegion, "scale") || 1) *
-        this._getScaleFactor(sourceScene, sourceRegion, targetScene, targetRegion);
+    const extraScale = this._getRegionFlag(targetRegion, "scale") || 1;
+    const scale = {
+      x: extraScale * (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
+      y: extraScale * (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid),
+    };
+    const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
     const tintRgb = token.tint ? hexToRGB(colorStringToHex(token.tint)) : [1., 1., 1.];
     const multRgb = hexToRGB(colorStringToHex(
@@ -396,9 +391,17 @@ class MultilevelTokens {
     data.actorId = "";
     data.actorLink = false;
     data.vision = false;
+    data.width *= scale.x;
+    data.height *= scale.y;
+    // Workaround for Foundry behaviour in which image is scaled down to fit if token width is reduced, but not if
+    // height is reduced.
+    if (scale.y < scale.x) {
+      data.scale = data.scale ? data.scale * scale.y / scale.x : scale.y / scale.x;
+    }
+
+    const targetPosition = this._getTokenPositionFromCentre(targetScene, data, targetCentre);
     data.x = targetPosition.x;
     data.y = targetPosition.y;
-    data.scale = data.scale ? data.scale * targetScaleFactor : targetScaleFactor;
     data.rotation += targetRegion.rotation - sourceRegion.rotation;
     data.tint = "#" + rgbToHex(tintRgb).toString(16);
     if (!data.flags || !cloneModuleFlags) {
@@ -834,7 +837,8 @@ class MultilevelTokens {
     }
 
     const outRegion = outRegions[Math.floor(outRegions.length * Math.random())];
-    const position = this._mapTokenPosition(scene, token, inRegion, outRegion[1], outRegion[2]);
+    const position = this._getTokenPositionFromCentre(outRegion[1], token,
+        this._mapPosition(this._getTokenCentre(scene, token), inRegion, outRegion[2]));
     // TODO: wait for animation to complete before teleporting, if possible? This would avoid visual inconsistencies
     // where a token teleports before completing the move animation into the region.
     if (outRegion[1] === scene) {
