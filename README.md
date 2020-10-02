@@ -120,6 +120,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.3.0**:
+  * Added Spanish translation (contributed by [Evolatum](https://github.com/Evolatum)).
 * **1.2.0**:
   * Added French translation (contributed by [`Meï#4242`](https://github.com/MeixDev)).
 * **1.1.0**:
