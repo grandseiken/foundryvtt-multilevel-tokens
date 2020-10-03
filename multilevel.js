@@ -118,6 +118,7 @@ class MultilevelTokens {
     Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
     Hooks.on("targetToken", this._onTargetToken.bind(this));
+    Hooks.on("hoverNote", this._onHoverNote.bind(this));
     Hooks.on("preCreateCombatant", this._onPreCreateCombatant.bind(this));
     Hooks.on("chatMessage", this._onChatMessage.bind(this));
     Hooks.on("createChatMessage", this._onCreateChatMessage.bind(this));
@@ -458,10 +459,14 @@ class MultilevelTokens {
     });
   }
 
-  _getFlaggedRegionsContainingToken(scene, token, flags) {
+  _getFlaggedRegionsContainingPoint(scene, point, flags) {
     return scene.data.drawings
         .filter(drawing => this._hasRegionFlag(drawing, flags) &&
-                           this._isTokenInRegion(scene, token, drawing));
+                           this._isPointInRegion(point, drawing));
+  }
+
+  _getFlaggedRegionsContainingToken(scene, token, flags) {
+    return this._getFlaggedRegionsContainingPoint(scene, this._getTokenCentre(scene, token), flags);
   }
 
   _filterRegionsAndUpdateLastTeleport(token, inRegions) {
@@ -827,73 +832,117 @@ class MultilevelTokens {
     }
   }
 
-  // Teleport using standard teleport regions. Returns true if a teleport occurred, false otherwise.
-  _doTeleport(scene, token) {
-    if (!this._isPrimaryGamemaster()) {
-      return false;
-    }
-
-    let inRegions = this._getFlaggedRegionsContainingToken(scene, token, "in");
-    inRegions = this._filterRegionsAndUpdateLastTeleport(token, inRegions);
-    if (!inRegions.length) {
-      return false;
-    }
-
-    const inRegion = inRegions[Math.floor(inRegions.length * Math.random())];
+  _activateTeleport(scene, inRegion, tokens) {
     const outRegions = this._getLinkedRegionsByFlag(scene, inRegion, "teleportId", "out");
-    if (!outRegions.length) {
+    if (!tokens.length || !outRegions.length) {
       return false;
     }
 
-    const [_, outScene, outRegion] = outRegions[Math.floor(outRegions.length * Math.random())];
-    let position = this._getTokenPositionFromCentre(outScene, token,
-        this._mapPosition(this._getTokenCentre(scene, token), inRegion, outRegion));
-    if (this._hasRegionFlag(outRegion, "snapToGrid")) {
-      const options = {
-        dimensions: Canvas.getDimensions(outScene.data),
-        columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType),
-        even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType)
-      };
-      if (outScene.data.gridType === GRID_TYPES.SQUARE) {
-        position = new SquareGrid(options).getSnappedPosition(position.x, position.y);
-      } else if (outScene.data.gridType !== GRID_TYPES.GRIDLESS) {
-        position = new HexagonalGrid(options).getSnappedPosition(position.x, position.y);
+    const destinations = [];
+    for (const token of tokens) {
+      const [_, outScene, outRegion] = outRegions[Math.floor(outRegions.length * Math.random())];
+      let position = this._getTokenPositionFromCentre(outScene, token,
+          this._mapPosition(this._getTokenCentre(scene, token), inRegion, outRegion));
+      if (this._hasRegionFlag(outRegion, "snapToGrid")) {
+        const options = {
+          dimensions: Canvas.getDimensions(outScene.data),
+          columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType),
+          even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType)
+        };
+        if (outScene.data.gridType === GRID_TYPES.SQUARE) {
+          position = new SquareGrid(options).getSnappedPosition(position.x, position.y);
+        } else if (outScene.data.gridType !== GRID_TYPES.GRIDLESS) {
+          position = new HexagonalGrid(options).getSnappedPosition(position.x, position.y);
+        }
       }
+      const animate = this._hasRegionFlag(inRegion, "animate") || this._hasRegionFlag(outRegion, "animate");
+      destinations.push([duplicate(token), outScene, animate, position]);
     }
     // TODO: wait for animation to complete before teleporting, if possible? This would avoid visual inconsistencies
     // where a token teleports before completing the move animation into the region.
-    if (outScene === scene) {
-      const animate = this._hasRegionFlag(inRegion, "animate") || this._hasRegionFlag(outRegion, "animate");
-      this._queueAsync(requestBatch => requestBatch.updateToken(scene, {
-        _id: token._id,
-        x: position.x,
-        y: position.y,
-      }, animate));
-    } else {
-      const data = duplicate(token);
-      const id = data._id;
-      delete data._id;
-      data.x = position.x;
-      data.y = position.y;
+    this._queueAsync(requestBatch => {
+      for (const [token, outScene, animate, position] of destinations) {
+        if (outScene === scene) {
+          requestBatch.updateToken(scene, {
+            _id: token._id,
+            x: position.x,
+            y: position.y,
+          }, animate);
+          continue;
+        }
+        const id = token._id;
+        delete token._id;
+        token.x = position.x;
+        token.y = position.y;
 
-      const actor = game.actors.get(token.actorId);
-      const owners = actor ? game.users.filter(u => !u.isGM && actor.hasPerm(u, "OWNER")) : [];
-
-      this._queueAsync(requestBatch => {
+        const actor = game.actors.get(token.actorId);
+        const owners = actor ? game.users.filter(u => !u.isGM && actor.hasPerm(u, "OWNER")) : [];
         if (!scene.data.tokens.find(t => t._id === id)) {
           // If the token has already gone, don't teleport it. Otherwise we could end up with things like the token getting
           // duplicated multiple times.
-          return;
+          continue;
         }
         requestBatch.deleteToken(scene, id);
         requestBatch.createToken(outScene, data);
         owners.forEach(user => {
           requestBatch.extraAction(() => game.socket.emit("pullToScene", outScene._id, user._id));
         })
-      });
+      }
+    });
+  }
+
+  // Teleport one token using any standard teleport regions. Returns true if a teleport occurred, false otherwise.
+  _doTeleport(scene, token) {
+    if (!this._isPrimaryGamemaster()) {
+      return false;
     }
 
-    return true;
+    let inRegions = this._getFlaggedRegionsContainingToken(scene, token, "in")
+        .filter(r => !this._hasRegionFlag(r, "activateViaMapNote"));
+    inRegions = this._filterRegionsAndUpdateLastTeleport(token, inRegions);
+    if (!inRegions.length) {
+      return false;
+    }
+
+    const inRegion = inRegions[Math.floor(inRegions.length * Math.random())];
+    return this._activateTeleport(scene, inRegion, [token]);
+  }
+
+  // Activate a map-note triggered teleport region.
+  _doMapNoteTeleport(scene, mapNote, user) {
+    if (!this._isPrimaryGamemaster()) {
+      return false;
+    }
+
+    const epsilon = 1 / 256;
+    const points = [
+      {x: mapNote.x - epsilon, y: mapNote.y - epsilon},
+      {x: mapNote.x - epsilon, y: mapNote.y + epsilon},
+      {x: mapNote.x + epsilon, y: mapNote.y - epsilon},
+      {x: mapNote.x + epsilon, y: mapNote.y + epsilon},
+    ];
+    const inRegions = scene.data.drawings.filter(drawing =>
+        this._hasRegionFlag(drawing, "in") && points.some(p => this._isPointInRegion(p, drawing)));
+    for (let i = inRegions.length - 1; i >= 1; --i) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = inRegions[i];
+      inRegions[i] = inRegions[j];
+      inRegions[j] = t;
+    }
+
+    for (const inRegion of inRegions) {
+      const tokens = scene.data.tokens.filter(token => {
+        if (!this._isProperToken(token) || !this._isTokenInRegion(scene, token, inRegion)) {
+          return false;
+        }
+        if (user.isGM) {
+          return true;
+        }
+        const actor = game.actors.get(token.actorId);
+        return actor && actor.hasPerm(user, "OWNER");
+      });
+      this._activateTeleport(scene, inRegion, tokens);
+    }
   }
 
   // Teleport between levels within a scene using stair tokens.
@@ -928,7 +977,7 @@ class MultilevelTokens {
       for (const adjacentRegion of adjacentLevelRegions) {
         for (const sourceStairToken of sourceStairTokens) {
           // Check if our token, when moved to the other level's region, would overlap a stair token.
-          const targetPosition = this._mapPosition(this._getTokenCentre(scene, token), levelRegion, adjacentRegion);
+          const targetPosition = this._mapPosition(this._getTokenCentre(scene, sourceStairToken), levelRegion, adjacentRegion);
           const linkedStairToken = allStairTokens.find(t => this._isPointInToken(scene, targetPosition, t));
           if (linkedStairToken) {
             targetStairTokens.push(linkedStairToken);
@@ -1362,6 +1411,7 @@ class MultilevelTokens {
     }
     if (game.user.isGM) {
       this._initializeLastTeleportAndMacroTracking();
+      game.socket.on(`module.${MLT.SCOPE}`, this._onSocket.bind(this));
     }
   }
 
@@ -1503,6 +1553,25 @@ class MultilevelTokens {
     });
   }
 
+  _onHoverNote(note, hover) {
+    if (!hover) {
+      return;
+    }
+    note.mouseInteractionManager.permissions.clickLeft = () => true;
+    note.mouseInteractionManager.callbacks.clickLeft = () => {
+      if (this._isPrimaryGamemaster()) {
+        this._doMapNoteTeleport(note.scene, note.data, game.user);
+      } else {
+        game.socket.emit(`module.${MLT.SCOPE}`, {
+          operation: "clickMapNote",
+          user: game.user.id,
+          scene: note.scene.id,
+          note: note.id,
+        });
+      }
+    };
+  }
+
   _onPreCreateCombatant(combat, combatant, options, userId) {
     const token = combat.scene.data.tokens.find(t => t._id === combatant.tokenId);
     if (!token || !this._isReplicatedToken(token)) {
@@ -1554,6 +1623,23 @@ class MultilevelTokens {
   _onRenderDrawingConfig(app, html, data) {
     if (this._isAuthorisedRegion(data.object)) {
       this._injectDrawingConfigTab(app, html, data);
+    }
+  }
+
+  _onSocket(data) {
+    if (!this._isPrimaryGamemaster()) {
+      return;
+    }
+    if (data.operation === "clickMapNote") {
+      const scene = game.scenes.get(data.scene);
+      const user = game.users.get(data.user);
+      if (!scene || !user) {
+        return;
+      }
+      const note = scene.data.notes.find(note => note._id === data.note);
+      if (note) {
+        this._doMapNoteTeleport(scene, note, user);
+      }
     }
   }
 }

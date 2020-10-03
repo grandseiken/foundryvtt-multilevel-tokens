@@ -7,6 +7,7 @@
   "minimumCoreVersion": "0.6.0",
   "compatibleCoreVersion": "0.6.6",
   "scripts": ["multilevel.js"],
+  "socket": true,
   "languages": [
     {
       "lang": "en",
