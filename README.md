@@ -78,7 +78,7 @@ Cloned tokens behave a little differently from regular tokens. They can't be mov
 * You can have more than one **Target** region with the same identifier: tokens in matching **Source** region(s) will be cloned to all of them.
 * You can have more than one **Source** region with the same identifier: tokens in all of them will be cloned to matching **Target** region(s).
 * By default, chat bubbles and player targeting will also be synced between a token and its clones. You can disable either of these options in the **Module Settings** if they cause issues.
-* several additional properties are available in the configuration tab for **Target** regions in particular: you can change the tint colour applied to tokens cloned into the region, or choose to mirror the positions of the cloned tokens horizontally or vertically within the region.
+* several additional properties are available in the configuration tab for **Target** regions in particular: you can change the tint colour applied to tokens cloned into the region, apply a scaling factor to their sizes, or choose to mirror the positions of the cloned tokens horizontally or vertically within the region.
 
 ## Creating level-based teleports
 
