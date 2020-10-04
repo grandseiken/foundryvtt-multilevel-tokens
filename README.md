@@ -41,7 +41,22 @@ You can check both the **In** and **Out** boxes (on two regions with the same id
 * Teleport regions can be any size or shape you like. Tokens will be teleported to the correct relative position within the **Out** region based on where they entered the **In** region.
 * An **Out** region can be on the same scene as an **In** region, or on a different scene. If a player-owned token teleports to a different scene, the player will be pulled to the new scene along with it; GM users will not be pulled.
 * You can check the **Scene-local** box to prevent a teleport region from matching with regions on any other scene. This can be useful if you only need to teleport within a single scene, and don't want to worry about accidentally choosing an identifier that was used elsewhere.
+* If you check the **Snap to grid** box on an **Out** region, tokens that teleport to the region will be snapped to the grid. This can be useful if your teleport regions are not exactly lined up with the grid, or are placed in narrow corridors where an off-grid token could get stuck.
 * If you check the **Animate movement** box, a teleporting token will move to the destination as if by mouse-dragging, rather than instantly disappearing and appearing there.
+
+## Click-to-activate teleports
+
+By default, teleport regions will automatically teleport any token that moves into the **In** region. If you check the **Activate via map note** box on an **In** region, you can instead use a Map Note as a clickable button to activate the teleport.
+
+To set up a Map Note to use as a teleport activation button, you will need to:
+* Create a Journal Entry with any name. If you want your players to be able to activate the teleport themselves, you will need to configure the permissions of the Journal Entry so that players have at least the **Observer** permission.
+* Drag the Journal Entry onto the map to create a Map Note and position it within the **In** region you wish to activate when it is clicked. You can configure the note with whatever text or icon you like.
+
+If the GM clicks on the map note, all tokens currently within the region will be teleported. If a player clicks on the map note, any tokens they own within the region will be teleported.
+
+If a player has not enabled display of Map Notes, they will be made temporarily visible when a token the player controls is inside an eligible region, so that the button can be clicked.
+
+![Activate via map notes example](demo/mapnotes.gif)
 
 ## Creating token cloning regions
 
@@ -123,12 +138,12 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 * **1.3.0**:
   * Added Spanish translation (contributed by [Evolatum](https://github.com/Evolatum)).
-  * Added a new **Activate via map note** setting for teleport In regions, disabled by default. When enabled, the teleport must be activated manually by clicking on a Map Note in the region. Map Notes will be temporarily displayed for players who own a token inside such a region even if they have not toggled visibility of Map Notes.
+  * Added a new **Activate via map note** setting for teleport In regions, disabled by default. When enabled, the teleport must be triggered manually by clicking on a Map Note in the region. Map Notes will be temporarily visible for players who own a token inside such a region even if they have not enabled display of Map Notes.
   * Added a new **Snap to grid** setting for teleport Out regions, enabled by default. When enabled, tokens that teleport to the Out region will be snapped to the grid.
-  * Macros triggered by macros regions can now find the `Actor` object associated with the token triggering the macro in the `actor` variable.
+  * Macros triggered by macros regions can now access the `Actor` object associated with the token triggering the macro, available in the `actor` variable.
   * Clone target regions can now be configured to apply a scaling factor to the sizes of cloned tokens.
   * The width and height of cloned tokens are now scaled independently if the source and target regions have different aspect ratios.
-  * Fixed minor inaccuracies due to scene grid configuration. Cloned tokens are now positioned and scaled correctly even across scenes with different grid sizes or grid types.
+  * Cloned tokens are now positioned and scaled correctly even across scenes with different grid sizes or grid types. Previously, this could result in minor inaccuracies.
 * **1.2.0**:
   * Added French translation (contributed by [`Meï#4242`](https://github.com/MeixDev)).
 * **1.1.0**:
