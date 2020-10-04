@@ -93,6 +93,7 @@ Script macros will be executed by the GM whenever one of the chosen events occur
 * `scene`: the `Scene` object containing the token and region in question.
 * `region`: a `Drawing` object describing the region that caused the macro to trigger.
 * `token`: a `Token` object describing the token that caused the macro to trigger.
+* `actor`: the `Actor` object associated with the token.
 * `event`: indicates which of the three event types occurred. It will have one of the values `MLT.ENTER`, `MLT.LEAVE`, or `MLT.MOVE`.
 * `args`: an array containing the values supplied in the **Additional arguments** field of the **Macro** region. This field takes a comma-separated list of values. Each value is interpreted as either a `String`, `Number` or `Boolean` as appropriate; double-quotes can be used to force a value to be interpreted as a `String` or to supply a `String` containing commas. For example, entering `1, false, foo, bar` into the **Additional arguments** field would result in the `args` array `[1, false, "foo", "bar"]`, but entering `"1", "false", "foo, bar"` would result in the `args` array `["1", "false", "foo, bar"]`.
 
@@ -122,6 +123,9 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 * **1.3.0**:
   * Added Spanish translation (contributed by [Evolatum](https://github.com/Evolatum)).
+  * Added a new **Activate via map note** setting for teleport In regions, disabled by default. When enabled, the teleport must be activated manually by clicking on a Map Note in the region. Map Notes will be temporarily displayed for players who own a token inside such a region even if they have not toggled visibility of Map Notes.
+  * Added a new **Snap to grid** setting for teleport Out regions, enabled by default. When enabled, tokens that teleport to the Out region will be snapped to the grid.
+  * Macros triggered by macros regions can now find the `Actor` object associated with the token triggering the macro in the `actor` variable.
   * Clone target regions can now be configured to apply a scaling factor to the sizes of cloned tokens.
   * The width and height of cloned tokens are now scaled independently if the source and target regions have different aspect ratios.
   * Fixed minor inaccuracies due to scene grid configuration. Cloned tokens are now positioned and scaled correctly even across scenes with different grid sizes or grid types.

@@ -30,7 +30,7 @@
   "MLT.FieldMirrorHorizontally": "Mirror horizontally",
   "MLT.FieldMirrorVertically": "Mirror vertically",
   "MLT.SectionMacroTriggers": "Macro triggers",
-  "MLT.SectionMacroTriggersNotes": "Trigger a macro when a token enters this region, leaves it, or moves within it. Within the macro, the variables <b>scene</b>, <b>region</b> and <b>token</b> give the <b>Scene</b>, <b>Drawing</b> and <b>Token</b> objects involved.",
+  "MLT.SectionMacroTriggersNotes": "Trigger a macro when a token enters this region, leaves it, or moves within it. Within the macro, the variables <b>scene</b>, <b>region</b>, <b>token</b> and <b>actor</b> give the <b>Scene</b>, <b>Drawing</b>, <b>Token</b> and <b>Actor</b> objects involved.",
   "MLT.FieldTriggerOnEnter": "Trigger on enter",
   "MLT.FieldTriggerOnLeave": "Trigger on leave",
   "MLT.FieldTriggerOnMove": "Trigger on movement",

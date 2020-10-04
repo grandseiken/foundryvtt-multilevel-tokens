@@ -115,6 +115,7 @@ class MultilevelTokens {
     Hooks.on("createToken", this._onCreateToken.bind(this));
     Hooks.on("preUpdateToken", this._onPreUpdateToken.bind(this));
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
+    Hooks.on("controlToken", this._onControlToken.bind(this));
     Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
     Hooks.on("targetToken", this._onTargetToken.bind(this));
@@ -128,6 +129,7 @@ class MultilevelTokens {
     this._chatMacroSpeaker = null;
     this._asyncQueue = null;
     this._asyncCount = 0;
+    this._overrideNotesDisplay = false;
     console.log(MLT.LOG_PREFIX, "Initialized");
   }
 
@@ -467,6 +469,19 @@ class MultilevelTokens {
 
   _getFlaggedRegionsContainingToken(scene, token, flags) {
     return this._getFlaggedRegionsContainingPoint(scene, this._getTokenCentre(scene, token), flags);
+  }
+
+  _getTeleportRegionsForMapNote(scene, mapNote) {
+    const epsilon = 1 / 256;
+    const points = [
+      {x: mapNote.x - epsilon, y: mapNote.y - epsilon},
+      {x: mapNote.x - epsilon, y: mapNote.y + epsilon},
+      {x: mapNote.x + epsilon, y: mapNote.y - epsilon},
+      {x: mapNote.x + epsilon, y: mapNote.y + epsilon},
+    ];
+    return scene.data.drawings.filter(drawing =>
+        this._hasRegionFlag(drawing, "in") && this._hasRegionFlag(drawing, "activateViaMapNote") &&
+        points.some(p => this._isPointInRegion(p, drawing)));
   }
 
   _filterRegionsAndUpdateLastTeleport(token, inRegions) {
@@ -818,6 +833,7 @@ class MultilevelTokens {
         const outerRegion = region;
         {
           const token = canvas.tokens.get(outerToken._id) || new Token(outerToken, scene);
+          const actor = token.actor;
           const region = canvas.drawings.get(outerRegion[0]._id) || new Drawing(outerRegion[0], scene);
           const event = outerRegion[1];
           const args = this._getMacroArgs(outerRegion[0]);
@@ -829,6 +845,33 @@ class MultilevelTokens {
           }
         }
       }
+    }
+  }
+
+  _overrideNotesDisplayForToken(scene, token) {
+    const actor = game.actors.get(token.actorId);
+    if (!actor || !actor.hasPerm(game.user, "OWNER")) {
+      return;
+    }
+
+    const overrideNotesDisplay = this._getFlaggedRegionsContainingToken(scene, token, "in")
+        .some(r => this._hasRegionFlag(r, "activateViaMapNote"));
+
+    const redrawNotes = () => {
+      if (canvas.notes._active) {
+        canvas.notes.activate();
+      } else {
+        canvas.notes.deactivate();
+      }
+    }
+    if (overrideNotesDisplay && !game.settings.get("core", NotesLayer.TOGGLE_SETTING)) {
+      game.settings.set("core", NotesLayer.TOGGLE_SETTING, true);
+      this._overrideNotesDisplay = true;
+      redrawNotes();
+    } else if (!overrideNotesDisplay && this._overrideNotesDisplay) {
+      game.settings.set("core", NotesLayer.TOGGLE_SETTING, false);
+      this._overrideNotesDisplay = false;
+      redrawNotes();
     }
   }
 
@@ -914,15 +957,7 @@ class MultilevelTokens {
       return false;
     }
 
-    const epsilon = 1 / 256;
-    const points = [
-      {x: mapNote.x - epsilon, y: mapNote.y - epsilon},
-      {x: mapNote.x - epsilon, y: mapNote.y + epsilon},
-      {x: mapNote.x + epsilon, y: mapNote.y - epsilon},
-      {x: mapNote.x + epsilon, y: mapNote.y + epsilon},
-    ];
-    const inRegions = scene.data.drawings.filter(drawing =>
-        this._hasRegionFlag(drawing, "in") && points.some(p => this._isPointInRegion(p, drawing)));
+    const inRegions = this._getTeleportRegionsForMapNote(scene, mapNote);
     for (let i = inRegions.length - 1; i >= 1; --i) {
       const j = Math.floor(Math.random() * (i + 1));
       const t = inRegions[i];
@@ -1516,6 +1551,9 @@ class MultilevelTokens {
         canvas.triggerPendingOperations();
       }
     }
+    if (!game.user.isGM) {
+      this._overrideNotesDisplayForToken(scene, token);
+    }
     if (this._isProperToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._updateAllReplicatedTokensForToken(requestBatch, scene, t));
@@ -1525,6 +1563,12 @@ class MultilevelTokens {
       } else {
         this._doTeleport(scene, token) || this._doLevelTeleport(scene, token);
       }
+    }
+  }
+
+  _onControlToken(token, control) {
+    if (!game.user.isGM) {
+      this._overrideNotesDisplayForToken(token.scene, token.data);
     }
   }
 
@@ -1554,7 +1598,7 @@ class MultilevelTokens {
   }
 
   _onHoverNote(note, hover) {
-    if (!hover) {
+    if (!hover || !this._getTeleportRegionsForMapNote(note.scene, note.data).length) {
       return;
     }
     note.mouseInteractionManager.permissions.clickLeft = () => true;
