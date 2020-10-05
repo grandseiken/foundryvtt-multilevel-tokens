@@ -136,6 +136,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.3.1**:
+  * Fixed cross-scene teleports, which were broken on 1.3.0.
 * **1.3.0**:
   * Added Spanish translation (contributed by [Evolatum](https://github.com/Evolatum)).
   * Added a new **Activate via map note** setting for teleport In regions, disabled by default. When enabled, the teleport must be triggered manually by clicking on a Map Note in the region. Map Notes will be temporarily visible for players who own a token inside such a region even if they have not enabled display of Map Notes.

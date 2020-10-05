@@ -926,7 +926,7 @@ class MultilevelTokens {
           continue;
         }
         requestBatch.deleteToken(scene, id);
-        requestBatch.createToken(outScene, data);
+        requestBatch.createToken(outScene, token);
         owners.forEach(user => {
           requestBatch.extraAction(() => game.socket.emit("pullToScene", outScene._id, user._id));
         })
