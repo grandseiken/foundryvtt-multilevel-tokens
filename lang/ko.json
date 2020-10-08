@@ -30,7 +30,7 @@
   "MLT.FieldMirrorHorizontally": "수평적 대칭",
   "MLT.FieldMirrorVertically": "수직적 대칭",
   "MLT.SectionMacroTriggers": "매크로 트리거",
-  "MLT.SectionMacroTriggersNotes": "토큰이 영역 내에 들어오거나 나가거나, 안에서 움직일 때 매크로를 작동시킨다. 매크로 내에서 <b>scene</b>, <b>region</b>, <b>token</b> 변수는 관련된 <b>씬</b>, <b>그리기 도구</b>, <b>토큰</b> 객체를 제공한다.",
+  "MLT.SectionMacroTriggersNotes": "토큰이 영역 내에 들어오거나 나가거나, 안에서 움직일 때 매크로를 작동시킨다. 매크로 내에서 <b>scene</b>, <b>region</b>, <b>token</b>, <b>actor</b> 변수는 관련된 <b>씬</b>, <b>그리기 도구</b>, <b>토큰</b>, <b>액터</b> 객체를 제공한다.",
   "MLT.FieldTriggerOnEnter": "들어갈 때 작동",
   "MLT.FieldTriggerOnLeave": "나갈 때 작동",
   "MLT.FieldTriggerOnMove": "이동시 작동",
