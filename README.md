@@ -109,7 +109,14 @@ Script macros will be executed by the GM whenever one of the chosen events occur
 * `region`: a `Drawing` object describing the region that caused the macro to trigger.
 * `token`: a `Token` object describing the token that caused the macro to trigger.
 * `actor`: the `Actor` object associated with the token.
-* `event`: indicates which of the three event types occurred. It will have one of the values `MLT.ENTER`, `MLT.LEAVE`, or `MLT.MOVE`.
+* `event`: indicates which of type of event occurred. It will have one of the values `MLT.ENTER`, `MLT.LEAVE`, or `MLT.MOVE`. If a macro region is configured to trigger on more than one type of event (e.g. both **Trigger on enter** and **Trigger on leave** are checked), you can use this to run different code in your macro depending on what happened, e.g.:
+  ```
+  if (event === MLT.ENTER) {
+    // code run when token enters region
+  } else if (event === MLT.LEAVE) {
+    // code run when token leaves region
+  }
+  ```
 * `args`: an array containing the values supplied in the **Additional arguments** field of the **Macro** region. This field takes a comma-separated list of values. Each value is interpreted as either a `String`, `Number` or `Boolean` as appropriate; double-quotes can be used to force a value to be interpreted as a `String` or to supply a `String` containing commas. For example, entering `1, false, foo, bar` into the **Additional arguments** field would result in the `args` array `[1, false, "foo", "bar"]`, but entering `"1", "false", "foo, bar"` would result in the `args` array `["1", "false", "foo, bar"]`.
 
 Note that script macros triggered in this way run on the GM's client, and the GM might not currently be viewing the scene in question. In this case, the `Drawing` and `Token` objects mentioned above will be temporary objects created purely for the macro's execution, rather than the currently-visible ones found in `canvas.tokens` and `canvas.drawings`.
@@ -136,6 +143,9 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.3.2**:
+  * Updated Korean localization for features added in 1.3.0 (contributed by KLO).
+  * When a token moves from one macro region into another in a single movement, exit triggers for the first region are now run _before_ enter triggers for the second. This avoids issues with cleanup code for the first region interfering with on-enter code for the second in common use-cases.
 * **1.3.1**:
   * Fixed cross-scene teleports, which were broken on 1.3.0.
 * **1.3.0**:
