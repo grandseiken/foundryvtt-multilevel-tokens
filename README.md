@@ -11,6 +11,8 @@ All of the features work using Foundry's built in drawing tools. A new tab in th
 
 ![Configuration menu example](demo/menu.gif)
 
+You might also like my other module, [Vehicles and Mechanisms](https://github.com/grandseiken/foundryvtt-vehicles-and-mechanisms).
+
 ## Installation
 
 You can install this module by searching for it in Foundry's built-in module browser, or with the following public URL:
