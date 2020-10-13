@@ -46,6 +46,10 @@ class MltRequestBatch {
     this._scene(scene).updateWall.push(data);
   }
 
+  updateMapNote(scene, data) {
+    this._scene(scene).updateMapNote.push(data);
+  }
+
   updateLight(scene, data) {
     this._scene(scene).updateLight.push(data);
   }
@@ -67,6 +71,7 @@ class MltRequestBatch {
         updateDrawing: [],
         updateTile: [],
         updateWall: [],
+        updateMapNote: [],
         updateLight: [],
         updateSound: [],
         delete: []};
@@ -705,6 +710,10 @@ class MultilevelTokens {
         promise = promise.then(() => scene.updateEmbeddedEntity(Drawing.embeddedName, data.updateDrawing,
                                                                 Object.assign({diff: true}, options)));
       }
+      if (data.updateMapNote.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Note.embeddedName, data.updateMapNote,
+                                                                Object.assign({diff: true}, options)));
+      }
       if (data.updateLight.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(AmbientLight.embeddedName, data.updateLight,
                                                                 Object.assign({diff: true}, options)));
@@ -809,7 +818,7 @@ class MultilevelTokens {
         return r && this._hasRegionFlag(r, "macroLeave") && !currentMacroRegions.some(s => s._id === id) ? [[r, MLT.LEAVE]] : [];
     });
 
-    for (const region of leftMacroRegions.concat(enteredMacroRegions, movedMacroRegions)) {
+    for (const region of enteredMacroRegions.concat(movedMacroRegions, leftMacroRegions)) {
       const macroName = this._getRegionFlag(region[0], "macroName");
       const macro = game.macros.find(m => m.name === macroName && this._isUserGamemaster(m.data.author));
       if (!macro) {
