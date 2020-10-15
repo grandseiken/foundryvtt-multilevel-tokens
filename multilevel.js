@@ -692,35 +692,35 @@ class MultilevelTokens {
       }
       if (data.updateAnimated.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateAnimated,
-                                                                Object.assign({diff: true}, options)));
+                                                                Object.assign({diff: false}, options)));
       }
       if (data.updateInstant.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateInstant,
-                                                                Object.assign({diff: true, animate: false}, options)));
+                                                                Object.assign({diff: false, animate: false}, options)));
       }
       if (data.updateTile.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Tile.embeddedName, data.updateTile,
-                                                                Object.assign({diff: true}, options)));
+                                                                Object.assign({diff: false}, options)));
       }
       if (data.updateWall.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Wall.embeddedName, data.updateWall,
-                                                                Object.assign({diff: true}, options)));
+                                                                Object.assign({diff: false}, options)));
       }
       if (data.updateDrawing.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Drawing.embeddedName, data.updateDrawing,
-                                                                Object.assign({diff: true}, options)));
+                                                                Object.assign({diff: false}, options)));
       }
       if (data.updateMapNote.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Note.embeddedName, data.updateMapNote,
-                                                                Object.assign({diff: true}, options)));
+                                                                Object.assign({diff: false}, options)));
       }
       if (data.updateLight.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(AmbientLight.embeddedName, data.updateLight,
-                                                                Object.assign({diff: true}, options)));
+                                                                Object.assign({diff: false}, options)));
       }
       if (data.updateSound.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(AmbientSound.embeddedName, data.updateSound,
-                                                                Object.assign({diff: true}, options)));
+                                                                Object.assign({diff: false}, options)));
       }
       if (data.create.length) {
         promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, options));
@@ -1558,6 +1558,10 @@ class MultilevelTokens {
         canvasToken.stopAnimation();
         canvasToken._onUpdate({x: token.x, y: token.y}, {animate: false});
         canvas.triggerPendingOperations();
+      }
+      // Workaround for vision bug on 0.7.4.
+      if (canvasToken && canvasToken.updateSource) {
+        canvasToken.updateSource();
       }
     }
     if (!game.user.isGM) {
