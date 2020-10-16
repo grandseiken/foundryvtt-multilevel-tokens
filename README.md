@@ -145,6 +145,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.3.4**:
+  * Fixed issue introduced by workarounds added in v1.3.3 that prevented cloned tokens from animating when moved.
 * **1.3.3**:
   * Added workarounds for some issues introduced by the Foundry 0.7.x release series. Remains compatible with 0.6.x.
 * **1.3.2**:
