@@ -30,8 +30,9 @@ class MltRequestBatch {
     this._scene(scene).delete.push(id);
   }
 
-  updateToken(scene, data, animate=true) {
-    (animate ? this._scene(scene).updateAnimated : this._scene(scene).updateInstant).push(data);
+  updateToken(scene, data, animate=true, diff=true) {
+    (!animate ? this._scene(scene).updateInstant :
+     diff ? this._scene(scene).updateAnimateDiff : this._scene(scene).updateAnimated).push(data);
   }
 
   updateDrawing(scene, data) {
@@ -66,6 +67,7 @@ class MltRequestBatch {
     if (!(scene._id in this._scenes)) {
       this._scenes[scene._id] = {
         create: [],
+        updateAnimateDiff: [],
         updateAnimated: [],
         updateInstant: [],
         updateDrawing: [],
@@ -555,7 +557,8 @@ class MultilevelTokens {
       return;
     }
     requestBatch.updateToken(targetScene,
-        this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion));
+        this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion),
+        /* animate */ true, /* diff */ true);
   }
 
   _replicateTokenToAllRegions(requestBatch, scene, token) {
@@ -580,8 +583,7 @@ class MultilevelTokens {
           const sourceToken = sourceScene.data.tokens.find(t => t._id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
           const sourceRegion = sourceScene.data.drawings.find(d => d._id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]);
           if (sourceToken && sourceRegion) {
-            requestBatch.updateToken(targetScene,
-                this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion))
+            this._updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
           }
         });
   }
@@ -689,6 +691,10 @@ class MultilevelTokens {
           }
         }
         promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
+      }
+      if (data.updateAnimateDiff.length) {
+        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateAnimateDiff,
+                                                                Object.assign({diff: true}, options)));
       }
       if (data.updateAnimated.length) {
         promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateAnimated,
@@ -919,7 +925,7 @@ class MultilevelTokens {
             _id: token._id,
             x: position.x,
             y: position.y,
-          }, animate);
+          }, animate, /* diff */ false);
           continue;
         }
         const id = token._id;
@@ -1038,7 +1044,7 @@ class MultilevelTokens {
       _id: token._id,
       x: targetStairToken.x,
       y: targetStairToken.y,
-    }, /* animate */ false));
+    }, /* animate */ false, /* diff */ false));
     return true;
   }
 
