@@ -145,6 +145,10 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.3.4**:
+  * Fixed issue introduced by workarounds added in v1.3.3 that prevented cloned tokens from animating when moved.
+* **1.3.3**:
+  * Added workarounds for some issues introduced by the Foundry 0.7.x release series. Remains compatible with 0.6.x.
 * **1.3.2**:
   * Updated Korean localization for features added in 1.3.0 (contributed by KLO).
   * When a token moves from one macro region into another in a single movement, exit triggers for the first region are now run _before_ enter triggers for the second. This avoids issues with cleanup code for the first region interfering with on-enter code for the second in common use-cases.
