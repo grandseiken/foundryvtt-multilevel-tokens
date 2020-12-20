@@ -551,14 +551,22 @@ class MultilevelTokens {
         this._getReplicatedTokenCreateData(scene, token, sourceRegion, targetScene, targetRegion));
   }
 
-  _updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion) {
+  _updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion, keys) {
     if (!this._isProperToken(sourceToken) || !this._isReplicatedToken(targetToken) ||
         !this._isTokenInRegion(sourceScene, sourceToken, sourceRegion)) {
       return;
     }
-    requestBatch.updateToken(targetScene,
-        this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion),
-        /* animate */ true, /* diff */ true);
+    const updateData = this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
+    var filteredUpdateData = updateData;
+    if (keys) {
+      filteredUpdateData = {};
+      keys.forEach(k => {
+        if (k in updateData) {
+          filteredUpdateData[k] = updateData[k];
+        }
+      });
+    }
+    requestBatch.updateToken(targetScene, updateData, /* animate */ true, /* diff */ true);
   }
 
   _replicateTokenToAllRegions(requestBatch, scene, token) {
@@ -612,7 +620,7 @@ class MultilevelTokens {
           }));
   }
 
-  _updateAllReplicatedTokensForToken(requestBatch, scene, token) {
+  _updateAllReplicatedTokensForToken(requestBatch, scene, token, keys) {
     if (!this._isProperToken(token)) {
       return;
     }
@@ -638,7 +646,7 @@ class MultilevelTokens {
 
     tokensToDelete.forEach(([scene, t]) => requestBatch.deleteToken(scene, t._id));
     tokensToUpdate.forEach(([sourceRegion, targetScene, t, targetRegion]) =>
-        this._updateReplicatedToken(requestBatch, scene, token, sourceRegion, targetScene, t, targetRegion));
+        this._updateReplicatedToken(requestBatch, scene, token, sourceRegion, targetScene, t, targetRegion, keys));
     tokensToCreate.forEach(([sourceRegion, targetScene, targetRegion]) =>
         this._replicateTokenFromRegionToRegion(requestBatch, scene, token, sourceRegion, targetScene, targetRegion));
   }
@@ -1541,7 +1549,7 @@ class MultilevelTokens {
       return true;
     }
     // Attempt to update replicated token.
-    if ('x' in update || 'y' in update || 'rotation' in update) {
+    if ('x' in update || 'y' in update || 'rotation' in update || 'actorId' in update) {
       return false;
     }
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
@@ -1575,7 +1583,7 @@ class MultilevelTokens {
     }
     if (this._isProperToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(requestBatch => this._updateAllReplicatedTokensForToken(requestBatch, scene, t));
+      this._queueAsync(requestBatch => this._updateAllReplicatedTokensForToken(requestBatch, scene, t, Object.keys(update)));
       this._doMacros(scene, token);
       if (MLT.REPLICATED_UPDATE in options) {
         this._setLastTeleport(scene, token);
