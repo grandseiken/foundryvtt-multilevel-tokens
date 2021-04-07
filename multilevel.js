@@ -1451,12 +1451,9 @@ class MultilevelTokens {
     console.log(MLT.LOG_PREFIX, "Refreshing all");
     this._queueAsync(requestBatch => {
       game.scenes.forEach(scene => {
-        scene.data.tokens
-            .filter(this._isReplicatedToken.bind(this))
-            .forEach(t => requestBatch.deleteToken(scene, t._id));
         scene.data.drawings
             .filter(r => this._hasRegionFlag(r, "source"))
-            .forEach(r => this._replicateAllFromSourceRegion(requestBatch, scene, r));
+            .forEach(r => this._updateAllReplicatedTokensForSourceRegion(requestBatch, scene, r));
       });
     });
   }
