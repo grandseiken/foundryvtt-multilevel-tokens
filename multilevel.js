@@ -390,10 +390,10 @@ class MultilevelTokens {
     const sourceScale = this._getSceneScaleFactor(sourceScene);
     const targetScale = this._getSceneScaleFactor(targetScene);
     const scale = {
-      x: extraScale * (sourceScale.x / targetScale.x) *
-            (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
-      y: extraScale * (sourceScale.y / targetScale.y) *
-            (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid),
+      x: Math.abs(extraScale * (sourceScale.x / targetScale.x) *
+            (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid)),
+      y: Math.abs(extraScale * (sourceScale.y / targetScale.y) *
+            (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid)),
     };
     const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
