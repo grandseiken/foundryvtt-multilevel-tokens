@@ -1633,19 +1633,28 @@ class MultilevelTokens {
     if (!hover || !this._getTeleportRegionsForMapNote(note.scene, note.data).length) {
       return;
     }
-    note.mouseInteractionManager.permissions.clickLeft = () => true;
-    note.mouseInteractionManager.callbacks.clickLeft = () => {
-      if (this._isPrimaryGamemaster()) {
-        this._doMapNoteTeleport(note.scene, note.data, game.user);
-      } else {
-        game.socket.emit(`module.${MLT.SCOPE}`, {
-          operation: "clickMapNote",
-          user: game.user.id,
-          scene: note.scene.id,
-          note: note.id,
-        });
-      }
-    };
+    if (!note.mouseInteractionManager.mltOverride) {
+      note.mouseInteractionManager.mltOverride = true;
+
+      const oldPermission = note.mouseInteractionManager.permissions.clickLeft;
+      const oldCallback = note.mouseInteractionManager.callbacks.clickLeft;
+      note.mouseInteractionManager.permissions.clickLeft = () => true;
+      note.mouseInteractionManager.callbacks.clickLeft = (event) => {
+        if (this._isPrimaryGamemaster()) {
+          this._doMapNoteTeleport(note.scene, note.data, game.user);
+        } else {
+          game.socket.emit(`module.${MLT.SCOPE}`, {
+            operation: "clickMapNote",
+            user: game.user.id,
+            scene: note.scene.id,
+            note: note.id,
+          });
+        }
+        if (oldPermission()) {
+          oldCallback(game.user, event);
+        }
+      };
+    }
   }
 
   _onPreCreateCombatant(combat, combatant, options, userId) {

@@ -150,6 +150,7 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
   * Fixed snap-to-grid option when teleporting between scenes with square grids of differing size.
   * Fixed calculations for regions with negative width or height.
   * Slightly increased tolerance for placing click-to-activate map notes.
+  * Fixed that standard map note UI functionality (e.g. deleting) was disabled by the click-to-activate via map note feature.
   * When updating a cloned token to mirror changes to the original, fields that did not actually change are no longer needlessly updated.
   * Added Japanese localization (contributed by `touge`).
   * Updated Spanish localization.
