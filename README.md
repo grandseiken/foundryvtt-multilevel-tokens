@@ -152,6 +152,7 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
   * Slightly increased tolerance for placing click-to-activate map notes.
   * Fixed that standard map note UI functionality (e.g. deleting) was disabled by the click-to-activate via map note feature.
   * When updating a cloned token to mirror changes to the original, fields that did not actually change are no longer needlessly updated.
+  * Fixed that a macro region whose macro updated the triggering token could cause spurious additional events to fire on the macro region.
   * Added Japanese localization (contributed by `touge`).
   * Updated Spanish localization.
 * **1.3.4**:

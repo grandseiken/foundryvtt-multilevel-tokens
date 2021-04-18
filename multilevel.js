@@ -1589,7 +1589,9 @@ class MultilevelTokens {
     if (this._isProperToken(token)) {
       const t = duplicate(token);
       this._queueAsync(requestBatch => this._updateAllReplicatedTokensForToken(requestBatch, scene, t, Object.keys(update)));
-      this._doMacros(scene, token);
+      if ('x' in update || 'y' in update) {
+        this._doMacros(scene, token);
+      }
       if (MLT.REPLICATED_UPDATE in options) {
         this._setLastTeleport(scene, token);
       } else {
