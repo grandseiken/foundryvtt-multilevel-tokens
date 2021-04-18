@@ -291,8 +291,8 @@ class MultilevelTokens {
   _getSceneScaleFactor(scene) {
     const hexScale = 2 / Math.sqrt(3);
     return {
-      x: scene.data.gridType === GRID_TYPES.HEXODDR || scene.data.gridType === GRID_TYPES.HEXEVENR ? 1 : hexScale,
-      y: scene.data.gridType === GRID_TYPES.HEXODDQ || scene.data.gridType === GRID_TYPES.HEXEVENQ ? 1 : hexScale,
+      x: scene.data.gridType === GRID_TYPES.HEXODDR || scene.data.gridType === GRID_TYPES.HEXEVENR ? hexScale : 1,
+      y: scene.data.gridType === GRID_TYPES.HEXODDQ || scene.data.gridType === GRID_TYPES.HEXEVENQ ? hexScale : 1,
     };
   }
 

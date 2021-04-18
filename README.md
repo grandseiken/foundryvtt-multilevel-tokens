@@ -145,6 +145,11 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.4.0**:
+  * Fixed incorrect calculations for hex grids that was (in particular) causing issues for Vehicles and Mechanisms.
+  * When updating a cloned token to mirror changes to the original, fields that did not actually change are no longer needlessly updated.
+  * Added Japanese localization (contributed by `touge`).
+  * Updated Spanish localization.
 * **1.3.4**:
   * Fixed issue introduced by workarounds added in v1.3.3 that prevented cloned tokens from animating when moved.
 * **1.3.3**:
