@@ -147,6 +147,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 * **1.4.0**:
   * Fixed incorrect calculations for hex grids that was (in particular) causing issues for Vehicles and Mechanisms.
+  * Fixed snap-to-grid option when teleporting between scenes with square grids of differing size.
+  * Fixed calculations for regions with negative width or height.
   * When updating a cloned token to mirror changes to the original, fields that did not actually change are no longer needlessly updated.
   * Added Japanese localization (contributed by `touge`).
   * Updated Spanish localization.

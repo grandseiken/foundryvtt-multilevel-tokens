@@ -916,8 +916,13 @@ class MultilevelTokens {
           even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType)
         };
         if (outScene.data.gridType === GRID_TYPES.SQUARE) {
-          position = new SquareGrid(options).getSnappedPosition(position.x, position.y);
-        } else if (outScene.data.gridType !== GRID_TYPES.GRIDLESS) {
+          const gridSize = options.dimensions.size;
+          position.x = gridSize * Math.round(position.x / gridSize);
+          position.y = gridSize * Math.round(position.y / gridSize);
+        } else if (outScene.data.gridType === GRID_TYPES.GRIDLESS) {
+          position.x = Math.round(position.x);
+          position.y = Math.round(position.y);
+        } else {
           position = new HexagonalGrid(options).getSnappedPosition(position.x, position.y);
         }
       }
