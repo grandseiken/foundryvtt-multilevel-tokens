@@ -479,7 +479,7 @@ class MultilevelTokens {
   }
 
   _getTeleportRegionsForMapNote(scene, mapNote) {
-    const epsilon = 1 / 256;
+    const epsilon = 1 / 8;
     const points = [
       {x: mapNote.x - epsilon, y: mapNote.y - epsilon},
       {x: mapNote.x - epsilon, y: mapNote.y + epsilon},
