@@ -1652,8 +1652,8 @@ class MultilevelTokens {
             note: note.id,
           });
         }
-        if (oldPermission()) {
-          oldCallback(game.user, event);
+        if (oldPermission.call(note, game.user)) {
+          oldCallback.call(note, event);
         }
       };
     }

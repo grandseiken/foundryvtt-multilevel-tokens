@@ -145,6 +145,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.4.1**:
+  * Fixed that map notes couldn't be moved after being placed in a click-to-activate region.
 * **1.4.0**:
   * Fixed incorrect calculations for hex grids that was (in particular) causing issues for Vehicles and Mechanisms.
   * Fixed snap-to-grid option when teleporting between scenes with square grids of differing size.
