@@ -145,6 +145,18 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.4.1**:
+  * Fixed that map notes couldn't be moved after being placed in a click-to-activate region.
+* **1.4.0**:
+  * Fixed incorrect calculations for hex grids that was (in particular) causing issues for Vehicles and Mechanisms.
+  * Fixed snap-to-grid option when teleporting between scenes with square grids of differing size.
+  * Fixed calculations for regions with negative width or height.
+  * Slightly increased tolerance for placing click-to-activate map notes.
+  * Fixed that standard map note UI functionality (e.g. deleting) was disabled by the click-to-activate via map note feature.
+  * When updating a cloned token to mirror changes to the original, fields that did not actually change are no longer needlessly updated.
+  * Fixed that a macro region whose macro updated the triggering token could cause spurious additional events to fire on the macro region.
+  * Added Japanese localization (contributed by `touge`).
+  * Updated Spanish localization.
 * **1.3.4**:
   * Fixed issue introduced by workarounds added in v1.3.3 that prevented cloned tokens from animating when moved.
 * **1.3.3**:

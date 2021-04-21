@@ -291,8 +291,8 @@ class MultilevelTokens {
   _getSceneScaleFactor(scene) {
     const hexScale = 2 / Math.sqrt(3);
     return {
-      x: scene.data.gridType === GRID_TYPES.HEXODDR || scene.data.gridType === GRID_TYPES.HEXEVENR ? 1 : hexScale,
-      y: scene.data.gridType === GRID_TYPES.HEXODDQ || scene.data.gridType === GRID_TYPES.HEXEVENQ ? 1 : hexScale,
+      x: scene.data.gridType === GRID_TYPES.HEXODDR || scene.data.gridType === GRID_TYPES.HEXEVENR ? hexScale : 1,
+      y: scene.data.gridType === GRID_TYPES.HEXODDQ || scene.data.gridType === GRID_TYPES.HEXEVENQ ? hexScale : 1,
     };
   }
 
@@ -390,10 +390,10 @@ class MultilevelTokens {
     const sourceScale = this._getSceneScaleFactor(sourceScene);
     const targetScale = this._getSceneScaleFactor(targetScene);
     const scale = {
-      x: extraScale * (sourceScale.x / targetScale.x) *
-            (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid),
-      y: extraScale * (sourceScale.y / targetScale.y) *
-            (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid),
+      x: Math.abs(extraScale * (sourceScale.x / targetScale.x) *
+            (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid)),
+      y: Math.abs(extraScale * (sourceScale.y / targetScale.y) *
+            (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid)),
     };
     const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
@@ -479,7 +479,7 @@ class MultilevelTokens {
   }
 
   _getTeleportRegionsForMapNote(scene, mapNote) {
-    const epsilon = 1 / 256;
+    const epsilon = 1 / 8;
     const points = [
       {x: mapNote.x - epsilon, y: mapNote.y - epsilon},
       {x: mapNote.x - epsilon, y: mapNote.y + epsilon},
@@ -551,14 +551,22 @@ class MultilevelTokens {
         this._getReplicatedTokenCreateData(scene, token, sourceRegion, targetScene, targetRegion));
   }
 
-  _updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion) {
+  _updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion, keys) {
     if (!this._isProperToken(sourceToken) || !this._isReplicatedToken(targetToken) ||
         !this._isTokenInRegion(sourceScene, sourceToken, sourceRegion)) {
       return;
     }
-    requestBatch.updateToken(targetScene,
-        this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion),
-        /* animate */ true, /* diff */ true);
+    const updateData = this._getReplicatedTokenUpdateData(sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
+    var filteredUpdateData = updateData;
+    if (keys) {
+      filteredUpdateData = {};
+      keys.forEach(k => {
+        if (k in updateData) {
+          filteredUpdateData[k] = updateData[k];
+        }
+      });
+    }
+    requestBatch.updateToken(targetScene, updateData, /* animate */ true, /* diff */ true);
   }
 
   _replicateTokenToAllRegions(requestBatch, scene, token) {
@@ -612,7 +620,7 @@ class MultilevelTokens {
           }));
   }
 
-  _updateAllReplicatedTokensForToken(requestBatch, scene, token) {
+  _updateAllReplicatedTokensForToken(requestBatch, scene, token, keys) {
     if (!this._isProperToken(token)) {
       return;
     }
@@ -638,7 +646,7 @@ class MultilevelTokens {
 
     tokensToDelete.forEach(([scene, t]) => requestBatch.deleteToken(scene, t._id));
     tokensToUpdate.forEach(([sourceRegion, targetScene, t, targetRegion]) =>
-        this._updateReplicatedToken(requestBatch, scene, token, sourceRegion, targetScene, t, targetRegion));
+        this._updateReplicatedToken(requestBatch, scene, token, sourceRegion, targetScene, t, targetRegion, keys));
     tokensToCreate.forEach(([sourceRegion, targetScene, targetRegion]) =>
         this._replicateTokenFromRegionToRegion(requestBatch, scene, token, sourceRegion, targetScene, targetRegion));
   }
@@ -908,8 +916,13 @@ class MultilevelTokens {
           even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType)
         };
         if (outScene.data.gridType === GRID_TYPES.SQUARE) {
-          position = new SquareGrid(options).getSnappedPosition(position.x, position.y);
-        } else if (outScene.data.gridType !== GRID_TYPES.GRIDLESS) {
+          const gridSize = options.dimensions.size;
+          position.x = gridSize * Math.round(position.x / gridSize);
+          position.y = gridSize * Math.round(position.y / gridSize);
+        } else if (outScene.data.gridType === GRID_TYPES.GRIDLESS) {
+          position.x = Math.round(position.x);
+          position.y = Math.round(position.y);
+        } else {
           position = new HexagonalGrid(options).getSnappedPosition(position.x, position.y);
         }
       }
@@ -1541,7 +1554,7 @@ class MultilevelTokens {
       return true;
     }
     // Attempt to update replicated token.
-    if ('x' in update || 'y' in update || 'rotation' in update) {
+    if ('x' in update || 'y' in update || 'rotation' in update || 'actorId' in update) {
       return false;
     }
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
@@ -1575,8 +1588,10 @@ class MultilevelTokens {
     }
     if (this._isProperToken(token)) {
       const t = duplicate(token);
-      this._queueAsync(requestBatch => this._updateAllReplicatedTokensForToken(requestBatch, scene, t));
-      this._doMacros(scene, token);
+      this._queueAsync(requestBatch => this._updateAllReplicatedTokensForToken(requestBatch, scene, t, Object.keys(update)));
+      if ('x' in update || 'y' in update) {
+        this._doMacros(scene, token);
+      }
       if (MLT.REPLICATED_UPDATE in options) {
         this._setLastTeleport(scene, token);
       } else {
@@ -1620,19 +1635,28 @@ class MultilevelTokens {
     if (!hover || !this._getTeleportRegionsForMapNote(note.scene, note.data).length) {
       return;
     }
-    note.mouseInteractionManager.permissions.clickLeft = () => true;
-    note.mouseInteractionManager.callbacks.clickLeft = () => {
-      if (this._isPrimaryGamemaster()) {
-        this._doMapNoteTeleport(note.scene, note.data, game.user);
-      } else {
-        game.socket.emit(`module.${MLT.SCOPE}`, {
-          operation: "clickMapNote",
-          user: game.user.id,
-          scene: note.scene.id,
-          note: note.id,
-        });
-      }
-    };
+    if (!note.mouseInteractionManager.mltOverride) {
+      note.mouseInteractionManager.mltOverride = true;
+
+      const oldPermission = note.mouseInteractionManager.permissions.clickLeft;
+      const oldCallback = note.mouseInteractionManager.callbacks.clickLeft;
+      note.mouseInteractionManager.permissions.clickLeft = () => true;
+      note.mouseInteractionManager.callbacks.clickLeft = (event) => {
+        if (this._isPrimaryGamemaster()) {
+          this._doMapNoteTeleport(note.scene, note.data, game.user);
+        } else {
+          game.socket.emit(`module.${MLT.SCOPE}`, {
+            operation: "clickMapNote",
+            user: game.user.id,
+            scene: note.scene.id,
+            note: note.id,
+          });
+        }
+        if (oldPermission.call(note, game.user)) {
+          oldCallback.call(note, event);
+        }
+      };
+    }
   }
 
   _onPreCreateCombatant(combat, combatant, options, userId) {
