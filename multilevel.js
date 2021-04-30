@@ -252,7 +252,7 @@ class MultilevelTokens {
     }
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
     if (!sourceScene) {
-      return false;
+      return true;
     }
     return !sourceScene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
            !sourceScene.data.tokens.some(t => t._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
