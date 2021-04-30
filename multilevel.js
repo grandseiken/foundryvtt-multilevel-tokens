@@ -543,6 +543,11 @@ class MultilevelTokens {
         .filter(token => this._isTokenInRegion(scene, token, sourceRegion) && this._isProperToken(token));
   }
 
+  _getInvalidReplicatedTokensForScene(scene) {
+    return scene.data.tokens
+      .filter(token => this._isReplicatedToken(token) && this._isInvalidReplicatedToken(scene, token));
+  }
+
   _replicateTokenFromRegionToRegion(requestBatch, scene, token, sourceRegion, targetScene, targetRegion) {
     if (!this._isProperToken(token) || !this._isTokenInRegion(scene, token, sourceRegion)) {
       return;
@@ -1451,6 +1456,9 @@ class MultilevelTokens {
     console.log(MLT.LOG_PREFIX, "Refreshing all");
     this._queueAsync(requestBatch => {
       game.scenes.forEach(scene => {
+        this._getInvalidReplicatedTokensForScene(scene)
+          .forEach(token => requestBatch.deleteToken(scene, token._id));
+
         scene.data.drawings
             .filter(r => this._hasRegionFlag(r, "source"))
             .forEach(r => this._updateAllReplicatedTokensForSourceRegion(requestBatch, scene, r));
