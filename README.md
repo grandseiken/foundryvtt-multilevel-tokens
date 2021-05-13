@@ -145,6 +145,10 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.4.2**:
+  * Fixed ordering of macro region triggers. Triggers for tokens leaving should now correctly run before triggers for entering.
+  * Cloned tokens are no longer needlessly deleted and recreated when ensuring consistency on startup (contributed by [DemianWright](https://github.com/DemianWright)).
+  * Updated Spanish localization (contributed by [lozalojo](https://github.com/lozalojo)).
 * **1.4.1**:
   * Fixed that map notes couldn't be moved after being placed in a click-to-activate region.
 * **1.4.0**:
