@@ -837,7 +837,7 @@ class MultilevelTokens {
         return r && this._hasRegionFlag(r, "macroLeave") && !currentMacroRegions.some(s => s._id === id) ? [[r, MLT.LEAVE]] : [];
     });
 
-    for (const region of enteredMacroRegions.concat(movedMacroRegions, leftMacroRegions)) {
+    for (const region of leftMacroRegions.concat(movedMacroRegions, enteredMacroRegions)) {
       const macroName = this._getRegionFlag(region[0], "macroName");
       const macro = game.macros.find(m => m.name === macroName && this._isUserGamemaster(m.data.author));
       if (!macro) {
@@ -1657,8 +1657,8 @@ class MultilevelTokens {
             note: note.id,
           });
         }
-        if (oldPermission()) {
-          oldCallback(game.user, event);
+        if (oldPermission.call(note, game.user)) {
+          oldCallback.call(note, event);
         }
       };
     }
