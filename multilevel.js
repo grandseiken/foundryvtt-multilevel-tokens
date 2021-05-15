@@ -405,6 +405,8 @@ class MultilevelTokens {
     }
     const cloneModuleFlags = game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_MODULE_FLAGS) || false;
 
+    const tokenImage = this._getRegionFlag(targetRegion, "tokenImage");
+
     const data = duplicate(token);
     delete data._id;
     data.actorId = "";
@@ -412,6 +414,10 @@ class MultilevelTokens {
     data.vision = false;
     data.width *= scale.x;
     data.height *= scale.y;
+    // If an override token image is provided, use it:
+    if (tokenImage) {
+      data.img = tokenImage;
+    }
     // Workaround for Foundry behaviour in which image is scaled down to fit if token width is reduced, but not if
     // height is reduced.
     if (scale.y < scale.x) {
@@ -1243,6 +1249,15 @@ class MultilevelTokens {
       <hr>
       <p class="notes">${game.i18n.localize("MLT.SectionTargetRegionNotes")}</p>
       <div class="form-group">
+        <label for="mltTokenImage">${game.i18n.localize("MLT.FieldClonedTokenImage")}</label>
+          <div class="form-fields">
+            <button type="button" class="file-picker" data-type="imagevideo" data-target="mltTokenImage" title="Browse Files" tabindex="-1">
+                <i class="fas fa-file-import fa-fw"></i>
+            </button>
+            <input class="image" type="text" name="mltTokenImage" placeholder="(${game.i18n.localize("MLT.PlaceholderOptional")})">
+          </div>
+      </div>
+      <div class="form-group">
         <label for="mltTintColor">${game.i18n.localize("MLT.FieldClonedTokenTintColor")}</label>
         <div class="form-fields">
           <input class="color" type="text" name="mltTintColor">
@@ -1323,6 +1338,7 @@ class MultilevelTokens {
     input("mltSource").prop("checked", flags.source);
     input("mltTarget").prop("checked", flags.target);
     input("mltCloneId").prop("value", flags.cloneId);
+    input("mltTokenImage").prop("value", flags.tokenImage);
     input("mltTintColor").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
     input("mltTintColorPicker").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
     input("mltScale").prop("value", flags.scale || 1);
@@ -1337,6 +1353,9 @@ class MultilevelTokens {
     input("mltLevelNumber").prop("value", flags.levelNumber || 0);
     input("mltLocal").prop("checked", flags.local);
     input("mltDisabled").prop("checked", flags.disabled);
+
+    const tokenImageFilePicker = html.find(`button[data-target="mltTokenImage"]`)[0];
+    app._activateFilePicker(tokenImageFilePicker);
 
     const isChecked = name => input(name).is(":checked");
     const enable = (name, enabled) => input(name).prop("disabled", !enabled);
@@ -1354,6 +1373,7 @@ class MultilevelTokens {
       enable("mltActivateViaMapNote", isIn);
       enable("mltSnapToGrid", isOut);
       enable("mltCloneId", isSource || isTarget);
+      enable("mltTokenImage", isTarget);
       enable("mltTintColor", isTarget);
       enable("mltTintColorPicker", isTarget);
       enable("mltScale", isTarget);
@@ -1404,6 +1424,7 @@ class MultilevelTokens {
     convertFlag("mltSource", "source");
     convertFlag("mltTarget", "target");
     convertFlag("mltCloneId", "cloneId");
+    convertFlag("mltTokenImage", "tokenImage");
     convertFlag("mltTintColor", "tintColor");
     convertFlag("mltScale", "scale");
     convertFlag("mltFlipX", "flipX");
