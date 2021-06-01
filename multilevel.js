@@ -1015,7 +1015,7 @@ class MultilevelTokens {
         }
         const actor = game.actors.get(token.data.actorId);
         return actor && actor.hasPerm(user, "OWNER");
-      });
+      }).map(t => t.data);
       this._activateTeleport(scene, inRegion, tokens);
     }
   }
