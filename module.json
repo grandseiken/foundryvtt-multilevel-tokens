@@ -36,6 +36,6 @@
     }
   ],
   "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",
-  "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/v1.4.2/module.json",
-  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v1.4.2.zip"
+  "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/develop/module.json",
+  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/develop.zip"
 }
