@@ -1496,70 +1496,70 @@ class MultilevelTokens {
     return true;
   }
 
-  _onCreateDrawing(scene, drawing, options, userId) {
-    if (this._hasRegionFlag(drawing, "source")) {
-      const d = duplicate(drawing);
-      this._queueAsync(requestBatch => this._replicateAllFromSourceRegion(requestBatch, scene, d));
+  _onCreateDrawing(drawing, options, userId) {
+    if (this._hasRegionFlag(drawing.data, "source")) {
+      const d = duplicate(drawing.data);
+      this._queueAsync(requestBatch => this._replicateAllFromSourceRegion(requestBatch, drawing.parent, d));
     }
-    if (this._hasRegionFlag(drawing, "target")) {
-      const d = duplicate(drawing);
-      this._queueAsync(requestBatch => this._replicateAllToTargetRegion(requestBatch, scene, d));
+    if (this._hasRegionFlag(drawing.data, "target")) {
+      const d = duplicate(drawing.data);
+      this._queueAsync(requestBatch => this._replicateAllToTargetRegion(requestBatch, drawing.parent, d));
     }
   }
 
-  _onPreUpdateDrawing(scene, drawing, update, options, userId) {
-    this._convertDrawingConfigUpdateData(drawing, update);
+  _onPreUpdateDrawing(drawing, update, options, userId) {
+    this._convertDrawingConfigUpdateData(drawing.data, update);
     if (update.flags && update.flags[MLT.SCOPE]) {
-      this._onDeleteDrawing(scene, drawing, update, options, userId);
+      this._onDeleteDrawing(drawing, options, userId);
     }
     return true;
   }
 
-  _onUpdateDrawing(scene, drawing, update, options, userId) {
+  _onUpdateDrawing(drawing, update, options, userId) {
     if (update.flags && update.flags[MLT.SCOPE]) {
-      this._onCreateDrawing(scene, drawing, options, userId);
-    } else if (this._hasRegionFlag(drawing, "source") || this._hasRegionFlag(drawing, "target")) {
-      const d = duplicate(drawing);
+      this._onCreateDrawing(drawing, options, userId);
+    } else if (this._hasRegionFlag(drawing.data, "source") || this._hasRegionFlag(drawing.data, "target")) {
+      const d = duplicate(drawing.data);
       this._queueAsync(requestBatch => {
         if (this._hasRegionFlag(d, "source")) {
-          this._updateAllReplicatedTokensForSourceRegion(requestBatch, scene, d);
+          this._updateAllReplicatedTokensForSourceRegion(requestBatch, drawing.parent, d);
         }
         if (this._hasRegionFlag(d, "target")) {
-          this._updateAllReplicatedTokensForTargetRegion(requestBatch, scene, d);
+          this._updateAllReplicatedTokensForTargetRegion(requestBatch, drawing.parent, d);
         }
       });
     }
   }
 
-  _onDeleteDrawing(scene, drawing, options, userId) {
-    if (this._hasRegionFlag(drawing, ["source", "target"])) {
-      const d = duplicate(drawing);
-      this._queueAsync(requestBatch => this._removeReplicationsForRegion(requestBatch, scene, d));
+  _onDeleteDrawing(drawing, options, userId) {
+    if (this._hasRegionFlag(drawing.data, ["source", "target"])) {
+      const d = duplicate(drawing.data);
+      this._queueAsync(requestBatch => this._removeReplicationsForRegion(requestBatch, drawing.parent, d));
     }
   }
 
-  _onPreCreateToken(scene, token, options, userId) {
-    return this._allowTokenOperation(token, options);
+  _onPreCreateToken(document, options, userId) {
+    return this._allowTokenOperation(token.data, options);
   }
 
-  _onCreateToken(scene, token, options, userId) {
-    if (this._isProperToken(token)) {
-      const t = duplicate(token);
-      this._queueAsync(requestBatch => this._replicateTokenToAllRegions(requestBatch, scene, t));
-      this._setLastTeleport(scene, token);
+  _onCreateToken(token, options, userId) {
+    if (this._isProperToken(token.data)) {
+      const t = duplicate(token.data);
+      this._queueAsync(requestBatch => this._replicateTokenToAllRegions(requestBatch, token.parent, t));
+      this._setLastTeleport(token.parent, token.data);
     }
   }
 
-  _onPreUpdateToken(scene, token, update, options, userId) {
-    if (this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token)) {
+  _onPreUpdateToken(token, update, options, userId) {
+    if (this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(token.parent, token.data)) {
       return true;
     }
     // Attempt to update replicated token.
     if ('x' in update || 'y' in update || 'rotation' in update || 'actorId' in update) {
       return false;
     }
-    const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
-    const sourceToken = this._getSourceTokenForReplicatedToken(scene, token);
+    const sourceScene = this._getSourceSceneForReplicatedToken(token.parent, token.data);
+    const sourceToken = this._getSourceTokenForReplicatedToken(token.parent, token.data);
     if (sourceScene && sourceToken) {
       const newUpdate = duplicate(update);
       newUpdate._id = sourceToken._id;
@@ -1568,15 +1568,15 @@ class MultilevelTokens {
     return false;
   }
 
-  _onUpdateToken(scene, token, update, options, userId) {
+  _onUpdateToken(token, update, options, userId) {
     if (MLT.REPLICATED_UPDATE in options && "animate" in options && !options.animate &&
         ('x' in update || 'y' in update)) {
       // Workaround for issues with a non-animated position update on a token that is already animating.
-      const canvasToken = canvas.tokens.placeables.find(t => t.id === token._id);
+      const canvasToken = canvas.tokens.placeables.find(t => t.id === token.data._id);
       if (canvasToken && canvasToken._movement) {
         canvasToken._movement = null;
         canvasToken.stopAnimation();
-        canvasToken._onUpdate({x: token.x, y: token.y}, {animate: false});
+        canvasToken._onUpdate({x: token.data.x, y: token.data.y}, {animate: false});
         canvas.triggerPendingOperations();
       }
       // Workaround for vision bug on 0.7.4.
@@ -1585,18 +1585,19 @@ class MultilevelTokens {
       }
     }
     if (!game.user.isGM) {
-      this._overrideNotesDisplayForToken(scene, token);
+      this._overrideNotesDisplayForToken(token.parent, token.data);
     }
-    if (this._isProperToken(token)) {
-      const t = duplicate(token);
-      this._queueAsync(requestBatch => this._updateAllReplicatedTokensForToken(requestBatch, scene, t, Object.keys(update)));
+    if (this._isProperToken(token.data)) {
+      const t = duplicate(token.data);
+      this._queueAsync(requestBatch =>
+          this._updateAllReplicatedTokensForToken(requestBatch, token.parent, t, Object.keys(update)));
       if ('x' in update || 'y' in update) {
-        this._doMacros(scene, token);
+        this._doMacros(token.parent, token.data);
       }
       if (MLT.REPLICATED_UPDATE in options) {
-        this._setLastTeleport(scene, token);
+        this._setLastTeleport(token.parent, token.data);
       } else {
-        this._doTeleport(scene, token) || this._doLevelTeleport(scene, token);
+        this._doTeleport(token.parent, token.data) || this._doLevelTeleport(token.parent, token.data);
       }
     }
   }
@@ -1607,16 +1608,16 @@ class MultilevelTokens {
     }
   }
 
-  _onPreDeleteToken(scene, token, options, userId) {
-    return this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(scene, token);
+  _onPreDeleteToken(token, options, userId) {
+    return this._allowTokenOperation(token.data, options) || this._isInvalidReplicatedToken(token.parent, token.data);
   }
 
-  _onDeleteToken(scene, token, options, userId) {
-    if (this._isProperToken(token)) {
-      const t = duplicate(token);
-      this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, scene, t));
-      delete this._lastTeleport[token._id];
-      delete this._lastMacro[token._id];
+  _onDeleteToken(token, options, userId) {
+    if (this._isProperToken(token.data)) {
+      const t = duplicate(token.data);
+      this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, token.parent, t));
+      delete this._lastTeleport[token.data._id];
+      delete this._lastMacro[token.data._id];
     }
   }
 
@@ -1660,8 +1661,9 @@ class MultilevelTokens {
     }
   }
 
-  _onPreCreateCombatant(combat, combatant, options, userId) {
-    const token = combat.scene.data.tokens.find(t => t._id === combatant.tokenId);
+  _onPreCreateCombatant(combatant, options, userId) {
+    const combat = combatant.parent;
+    const token = combat.scene.data.tokens.find(t => t._id === combatant.data.tokenId);
     if (!token || !this._isReplicatedToken(token)) {
       return true;
     }
