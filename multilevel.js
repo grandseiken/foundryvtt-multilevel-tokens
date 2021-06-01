@@ -64,8 +64,8 @@ class MltRequestBatch {
   }
 
   _scene(scene) {
-    if (!(scene._id in this._scenes)) {
-      this._scenes[scene._id] = {
+    if (!(scene.id in this._scenes)) {
+      this._scenes[scene.id] = {
         create: [],
         updateAnimateDiff: [],
         updateAnimated: [],
@@ -78,7 +78,7 @@ class MltRequestBatch {
         updateSound: [],
         delete: []};
     }
-    return this._scenes[scene._id];
+    return this._scenes[scene.id];
   }
 }
 
@@ -227,7 +227,7 @@ class MultilevelTokens {
 
   _getSourceTokenForReplicatedToken(scene, token) {
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
-    return sourceScene && sourceScene.data.tokens.find(t => t._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
+    return sourceScene && sourceScene.data.tokens.find(t => t.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN])?.data;
   }
 
   _getAllLinkedCanvasTokens(token) {
@@ -247,28 +247,28 @@ class MultilevelTokens {
   }
 
   _isInvalidReplicatedToken(scene, token) {
-    if (!scene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
+    if (!scene.data.drawings.some(d => d.id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
       return true;
     }
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
     if (!sourceScene) {
       return true;
     }
-    return !sourceScene.data.drawings.some(d => d._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
-           !sourceScene.data.tokens.some(t => t._id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
+    return !sourceScene.data.drawings.some(d => d.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
+           !sourceScene.data.tokens.some(t => t.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
   }
 
   _isReplicationForSourceToken(sourceScene, sourceToken, targetScene, targetToken) {
     return targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] === sourceToken._id &&
         (MLT.FLAG_SOURCE_SCENE in targetToken.flags[MLT.SCOPE]
-            ? targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === sourceScene._id
+            ? targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === sourceScene.id
             : sourceScene === targetScene);
   }
 
   _isReplicationForSourceRegion(scene, region, targetScene, targetToken) {
     return targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION] === region._id &&
         (MLT.FLAG_SOURCE_SCENE in targetToken.flags[MLT.SCOPE]
-            ? targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === scene._id
+            ? targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] === scene.id
             : scene === targetScene);
   }
 
@@ -430,7 +430,7 @@ class MultilevelTokens {
     }
     data.flags[MLT.SCOPE] = {};
     if (sourceScene !== targetScene) {
-      data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] = sourceScene._id;
+      data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_SCENE] = sourceScene.id;
     }
     data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN] = token._id;
     data.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION] = sourceRegion._id;
@@ -453,27 +453,28 @@ class MultilevelTokens {
     const flagMatch = d => this._hasRegionFlag(d, filterFlags) && this._getRegionFlag(d, idFlag) === id;
     if (this._hasRegionFlag(region, "local")) {
       return scene.data.drawings
-          .filter(d => d._id !== region._id && flagMatch(d))
-          .map(result => [region, scene, result]);
+          .filter(d => d.id !== region._id && flagMatch(d.data))
+          .map(result => [region, scene, result.data]);
     }
     return game.scenes.map(resultScene => resultScene.data.drawings
-        .filter(d => (d._id !== region._id || scene !== resultScene) && flagMatch(d))
-        .map(result => [region, resultScene, result])
+        .filter(d => (d.id !== region._id || scene !== resultScene) && flagMatch(d.data))
+        .map(result => [region, resultScene, result.data])
     ).flat();
   }
 
   _getNumericallyAdjacentLevelRegions(scene, levelRegion) {
     const levelNumber = parseInt(this._getRegionFlag(levelRegion, "levelNumber"));
     return scene.data.drawings.filter(d => {
-      const otherNumber = parseInt(this._getRegionFlag(d, "levelNumber"));
+      const otherNumber = parseInt(this._getRegionFlag(d.data, "levelNumber"));
       return otherNumber == levelNumber + 1 || otherNumber == levelNumber - 1;
-    });
+    }).map(d => d.data);
   }
 
   _getFlaggedRegionsContainingPoint(scene, point, flags) {
     return scene.data.drawings
-        .filter(drawing => this._hasRegionFlag(drawing, flags) &&
-                           this._isPointInRegion(point, drawing));
+        .filter(drawing => this._hasRegionFlag(drawing.data, flags) &&
+                           this._isPointInRegion(point, drawing.data))
+        .map(d => d.data);
   }
 
   _getFlaggedRegionsContainingToken(scene, token, flags) {
@@ -488,9 +489,11 @@ class MultilevelTokens {
       {x: mapNote.x + epsilon, y: mapNote.y - epsilon},
       {x: mapNote.x + epsilon, y: mapNote.y + epsilon},
     ];
-    return scene.data.drawings.filter(drawing =>
-        this._hasRegionFlag(drawing, "in") && this._hasRegionFlag(drawing, "activateViaMapNote") &&
-        points.some(p => this._isPointInRegion(p, drawing)));
+    return scene.data.drawings
+        .filter(drawing =>
+            this._hasRegionFlag(drawing.data, "in") && this._hasRegionFlag(drawing.data, "activateViaMapNote") &&
+            points.some(p => this._isPointInRegion(p, drawing.data)))
+        .map(d => d.data);
   }
 
   _filterRegionsAndUpdateLastTeleport(token, inRegions) {
@@ -509,45 +512,47 @@ class MultilevelTokens {
 
   _getReplicatedTokensForSourceToken(sourceScene, sourceToken) {
     return game.scenes.map(scene => scene.data.tokens
-        .filter(token => this._isReplicatedToken(token) &&
-                         this._isReplicationForSourceToken(sourceScene, sourceToken, scene, token))
-        .map(token => [scene, token])
+        .filter(token => this._isReplicatedToken(token.data) &&
+                         this._isReplicationForSourceToken(sourceScene, sourceToken, scene, token.data))
+        .map(token => [scene, token.data])
     ).flat();
   }
 
   _getReplicatedTokensForSourceRegion(sourceScene, sourceRegion) {
     const scenes = this._hasRegionFlag(sourceRegion, "local") ? [sourceScene] : game.scenes;
     return scenes.map(s => s.data.tokens
-        .filter(token => this._isReplicatedToken(token) &&
-                         this._isReplicationForSourceRegion(sourceScene, sourceRegion, s, token))
-        .map(token => [s, token])
+        .filter(token => this._isReplicatedToken(token.data) &&
+                         this._isReplicationForSourceRegion(sourceScene, sourceRegion, s, token.data))
+        .map(token => [s, token.data])
     ).flat();
   }
 
   _getReplicatedTokensForTargetRegion(targetScene, targetRegion) {
     return targetScene.data.tokens
-        .filter(token => this._isReplicatedToken(token) &&
-                         this._isReplicationForTargetRegion(targetScene, targetRegion, targetScene, token))
-        .map(token => [targetScene, token]);
+        .filter(token => this._isReplicatedToken(token.data) &&
+                         this._isReplicationForTargetRegion(targetScene, targetRegion, targetScene, token.data))
+        .map(token => [targetScene, token.data]);
   }
 
   _getReplicatedTokensForRegion(scene, region) {
     const scenes = this._hasRegionFlag(region, "source") && !this._hasRegionFlag(region, "local") ? game.scenes : [scene];
     return scenes.map(s => s.data.tokens
-        .filter(token => this._isReplicatedToken(token) &&
-                         this._isReplicationForRegion(scene, region, s, token))
-        .map(token => [s, token])
+        .filter(token => this._isReplicatedToken(token.data) &&
+                         this._isReplicationForRegion(scene, region, s, token.data))
+        .map(token => [s, token.data])
     ).flat();
   }
 
   _getTokensToReplicateForRegion(scene, sourceRegion) {
     return scene.data.tokens
-        .filter(token => this._isTokenInRegion(scene, token, sourceRegion) && this._isProperToken(token));
+        .filter(token => this._isTokenInRegion(scene, token.data, sourceRegion) && this._isProperToken(token.data))
+        .map(t => t.data);
   }
 
   _getInvalidReplicatedTokensForScene(scene) {
     return scene.data.tokens
-        .filter(token => this._isReplicatedToken(token) && this._isInvalidReplicatedToken(scene, token));
+        .filter(token => this._isReplicatedToken(token.data) && this._isInvalidReplicatedToken(scene, token.data))
+        .map(t => t.data);
   }
 
   _replicateTokenFromRegionToRegion(requestBatch, scene, token, sourceRegion, targetScene, targetRegion) {
@@ -595,8 +600,8 @@ class MultilevelTokens {
           if (!sourceScene) {
             return;
           }
-          const sourceToken = sourceScene.data.tokens.find(t => t._id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
-          const sourceRegion = sourceScene.data.drawings.find(d => d._id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]);
+          const sourceToken = sourceScene.data.tokens.find(t => t.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN])?.data;
+          const sourceRegion = sourceScene.data.drawings.find(d => d.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION])?.data;
           if (sourceToken && sourceRegion) {
             this._updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
           }
@@ -609,7 +614,7 @@ class MultilevelTokens {
 
     replicatedTokens.forEach(([targetScene, targetToken]) => {
       const sourceToken = tokens.find(t => this._isReplicationForSourceToken(sourceScene, t, targetScene, targetToken));
-      const targetRegion = targetScene.data.drawings.find(d => targetToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION] === d._id);
+      const targetRegion = targetScene.data.drawings.find(d => d.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])?.data;
       if (sourceToken && targetRegion) {
         this._updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
       } else {
@@ -795,10 +800,10 @@ class MultilevelTokens {
   _initializeLastTeleportAndMacroTracking() {
     if (game.user.isGM) {
       game.scenes.forEach(scene => scene.data.tokens.forEach(token => {
-        this._setLastTeleport(scene, token);
-        const macroRegions = this._getFlaggedRegionsContainingToken(scene, token, ["macroEnter", "macroLeave", "macroMove"]);
+        this._setLastTeleport(scene, token.data);
+        const macroRegions = this._getFlaggedRegionsContainingToken(scene, token.data, ["macroEnter", "macroLeave", "macroMove"]);
         if (macroRegions.length) {
-          this._lastMacro[token._id] = macroRegions.map(r => r._id);
+          this._lastMacro[token.id] = macroRegions.map(r => r.id);
         }
       }));
     }
@@ -835,7 +840,7 @@ class MultilevelTokens {
     const movedMacroRegions = currentMacroRegions.flatMap(r =>
         this._hasRegionFlag(r, "macroMove") && previousMacroRegionIds.includes(r._id) ? [[r, MLT.MOVE]] : []);
     const leftMacroRegions = previousMacroRegionIds.flatMap(id => {
-        const r = scene.data.drawings.find(d => d._id === id);
+        const r = scene.data.drawings.find(d => d.id === id)?.data;
         return r && this._hasRegionFlag(r, "macroLeave") && !currentMacroRegions.some(s => s._id === id) ? [[r, MLT.LEAVE]] : [];
     });
 
@@ -848,7 +853,7 @@ class MultilevelTokens {
 
       if (macro.data.type === "chat") {
         this._chatMacroSpeaker = {
-          scene: scene._id,
+          scene: scene.id,
           actor: token.actorId,
           token: token._id,
           alias: token.name,
@@ -862,6 +867,7 @@ class MultilevelTokens {
         const outerToken = token;
         const outerRegion = region;
         {
+          // TODO: no longer need to create new objects here if we pass in the document object.
           const token = canvas.tokens.get(outerToken._id) || new Token(outerToken, scene);
           const actor = token.actor;
           const region = canvas.drawings.get(outerRegion[0]._id) || new Drawing(outerRegion[0], scene);
@@ -955,7 +961,7 @@ class MultilevelTokens {
 
         const actor = game.actors.get(token.actorId);
         const owners = actor ? game.users.filter(u => !u.isGM && actor.hasPerm(u, "OWNER")) : [];
-        if (!scene.data.tokens.find(t => t._id === id)) {
+        if (!scene.data.tokens.find(t => t.id === id)) {
           // If the token has already gone, don't teleport it. Otherwise we could end up with things like the token getting
           // duplicated multiple times.
           continue;
@@ -963,7 +969,7 @@ class MultilevelTokens {
         requestBatch.deleteToken(scene, id);
         requestBatch.createToken(outScene, token);
         owners.forEach(user => {
-          requestBatch.extraAction(() => game.socket.emit("pullToScene", outScene._id, user.id));
+          requestBatch.extraAction(() => game.socket.emit("pullToScene", outScene.id, user.id));
         })
       }
     });
@@ -1002,13 +1008,13 @@ class MultilevelTokens {
 
     for (const inRegion of inRegions) {
       const tokens = scene.data.tokens.filter(token => {
-        if (!this._isProperToken(token) || !this._isTokenInRegion(scene, token, inRegion)) {
+        if (!this._isProperToken(token.data) || !this._isTokenInRegion(scene, token.data, inRegion)) {
           return false;
         }
         if (user.isGM) {
           return true;
         }
-        const actor = game.actors.get(token.actorId);
+        const actor = game.actors.get(token.data.actorId);
         return actor && actor.hasPerm(user, "OWNER");
       });
       this._activateTeleport(scene, inRegion, tokens);
@@ -1026,7 +1032,7 @@ class MultilevelTokens {
       return false;
     }
 
-    const allStairTokens = scene.data.tokens.filter(t => t.name === MLT.TOKEN_STAIRS);
+    const allStairTokens = scene.data.tokens.filter(t => t.data.name === MLT.TOKEN_STAIRS).map(t => t.data);
     const sourceStairTokens =
         allStairTokens.filter(t => this._isPointInToken(scene, this._getTokenCentre(scene, token), t));
     if (!sourceStairTokens.length) {
@@ -1066,93 +1072,6 @@ class MultilevelTokens {
       y: targetStairToken.y,
     }, /* animate */ false, /* diff */ false));
     return true;
-  }
-
-  _legacyTagsToFlags(text) {
-    const flags = {
-      in: false,
-      out: false,
-      teleportId: undefined,
-      animate: false,
-      activateViaMapNote: false,
-      snapToGrid: false,
-      source: false,
-      target: false,
-      tintColor: MLT.DEFAULT_TINT_COLOR,
-      flipX: false,
-      flipY: false,
-      macroEnter: false,
-      macroLeave: false,
-      macroMove: false,
-      macroName: undefined,
-      macroArgs: undefined,
-      level: false,
-      levelNumber: 0,
-      local: false,
-    };
-    let converted = false;
-    const convertTag = (name, f) => {
-      if (text.startsWith(name)) {
-        converted = true;
-        f(text.substring(name.length));
-      }
-    }
-    const isLocal = id => id.startsWith("!");
-    const stripLocal = id => isLocal(id) ? id.substring(1) : id;
-    convertTag("@in:", id => {
-      flags.in = true;
-      flags.local = isLocal(id);
-      flags.teleportId = stripLocal(id);
-    });
-    convertTag("@out:", id => {
-      flags.out = true;
-      flags.local = isLocal(id);
-      flags.teleportId = stripLocal(id);
-    });
-    convertTag("@inout:", id => {
-      flags.in = true;
-      flags.out = true;
-      flags.local = isLocal(id);
-      flags.teleportId = stripLocal(id);
-    });
-    convertTag("@source:", id => {
-      flags.source = true;
-      flags.local = isLocal(id);
-      flags.cloneId = stripLocal(id);
-    });
-    convertTag("@target:", id => {
-      flags.target = true;
-      flags.local = isLocal(id);
-      flags.cloneId = stripLocal(id);
-    });
-    convertTag("@macro:", name => {
-      flags.macroEnter = true;
-      flags.macroName = name;
-    })
-    convertTag("@level:", n => {
-      flags.level = true;
-      flags.levelNumber = parseInt(n);
-    });
-    return converted ? flags : null;
-  }
-
-  _migrateRegion(requestBatch, scene, drawing) {
-    if (!this._isAuthorisedRegion(drawing) || !drawing.text) {
-      return;
-    }
-    const flags = this._legacyTagsToFlags(drawing.text)
-    if (!flags) {
-      return;
-    }
-    const data = {_id: drawing._id, flags: {}, text: this._flagsToLabel(flags)};
-    data.flags[MLT.SCOPE] = flags;
-    requestBatch.updateDrawing(scene, data);
-  }
-
-  _migrateRegions() {
-    this._queueAsync(requestBatch =>
-        game.scenes.forEach(scene =>
-            scene.data.drawings.forEach(r => this._migrateRegion(requestBatch, scene, r))));
   }
 
   _flagsToLabel(flags) {
@@ -1376,58 +1295,7 @@ class MultilevelTokens {
       return;
     }
 
-    /*delete update["mltTintColorPicker"];
-    const convertFlag = (inputName, flagName) => {
-      if (!(inputName in update)) {
-        return;
-      }
-      if (!data.flags || !data.flags[MLT.SCOPE] || data.flags[MLT.SCOPE][flagName] !== update[inputName]) {
-        if (!update.flags) {
-          update.flags = {};
-        }
-        if (!update.flags[MLT.SCOPE]) {
-          update.flags[MLT.SCOPE] = {};
-        }
-        update.flags[MLT.SCOPE][flagName] = update[inputName];
-      }
-      delete update[inputName];
-    };
-
-    convertFlag("mltIn", "in");
-    convertFlag("mltOut", "out");
-    convertFlag("mltTeleportId", "teleportId");
-    convertFlag("mltAnimate", "animate");
-    convertFlag("mltActivateViaMapNote", "activateViaMapNote");
-    convertFlag("mltSnapToGrid", "snapToGrid");
-    convertFlag("mltSource", "source");
-    convertFlag("mltTarget", "target");
-    convertFlag("mltCloneId", "cloneId");
-    convertFlag("mltTintColor", "tintColor");
-    convertFlag("mltScale", "scale");
-    convertFlag("mltFlipX", "flipX");
-    convertFlag("mltFlipY", "flipY");
-    convertFlag("mltMacroEnter", "macroEnter");
-    convertFlag("mltMacroLeave", "macroLeave");
-    convertFlag("mltMacroMove", "macroMove");
-    convertFlag("mltMacroName", "macroName");
-    convertFlag("mltMacroArgs", "macroArgs");
-    convertFlag("mltLevel", "level");
-    convertFlag("mltLevelNumber", "levelNumber");
-    convertFlag("mltLocal", "local");
-    convertFlag("mltDisabled", "disabled");*/
-
     let manualText = "text" in update && update.text;
-    if (manualText) {
-      const convertedFlags = this._legacyTagsToFlags(update.text);
-      if (convertedFlags) {
-        if (!update.flags) {
-          update.flags = {};
-        }
-        update.flags[MLT.SCOPE] = convertedFlags;
-        manualText = false;
-      }
-    }
-
     if (!update.flags || !update.flags[MLT.SCOPE]) {
       return;
     }
@@ -1463,8 +1331,8 @@ class MultilevelTokens {
             .forEach(token => requestBatch.deleteToken(scene, token._id));
 
         scene.data.drawings
-            .filter(r => this._hasRegionFlag(r, "source"))
-            .forEach(r => this._updateAllReplicatedTokensForSourceRegion(requestBatch, scene, r));
+            .filter(r => this._hasRegionFlag(r.data, "source"))
+            .forEach(r => this._updateAllReplicatedTokensForSourceRegion(requestBatch, scene, r.data));
       });
     });
   }
@@ -1472,7 +1340,6 @@ class MultilevelTokens {
   _onReady() {
     // Replications might be out of sync if there was previously no GM and we just logged in.
     if (this._isOnlyGamemaster()) {
-      this._migrateRegions();
       this.refreshAll();
     }
     if (game.user.isGM) {
@@ -1486,7 +1353,7 @@ class MultilevelTokens {
       // Workaround for issue where imported scene contains drawings whose author is an invalid user ID.
       // Can assume a GM took the import action and update to use their ID instead.
       this._queueAsync(requestBatch => {
-        scene.data.drawings.filter(d => !game.users.find(u => u.id === d.author)).forEach(d => {
+        scene.data.drawings.filter(d => !game.users.find(u => u.id === d.data.author)).forEach(d => {
           requestBatch.updateDrawing(scene, {
             _id: d._id,
             author: game.user.id,
@@ -1665,7 +1532,7 @@ class MultilevelTokens {
 
   _onPreCreateCombatant(combatant, options, userId) {
     const combat = combatant.parent;
-    const token = combat.scene.data.tokens.find(t => t._id === combatant.data.tokenId);
+    const token = combat.scene.data.tokens.find(t => t.id === combatant.data.tokenId)?.data;
     if (!token || !this._isReplicatedToken(token)) {
       return true;
     }
@@ -1701,7 +1568,7 @@ class MultilevelTokens {
     if (!scene) {
       return;
     }
-    const token = scene.data.tokens.find(t => t._id === message.data.speaker.token);
+    const token = scene.data.tokens.find(t => t.id === message.data.speaker.token)?.data;
     if (!token) {
       return;
     }
@@ -1728,7 +1595,7 @@ class MultilevelTokens {
       if (!scene || !user) {
         return;
       }
-      const note = scene.data.notes.find(note => note._id === data.note);
+      const note = scene.data.notes.find(note => note.id === data.note)?.data;
       if (note) {
         this._doMapNoteTeleport(scene, note, user);
       }
