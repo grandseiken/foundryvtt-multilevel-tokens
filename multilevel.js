@@ -702,7 +702,7 @@ class MultilevelTokens {
       }
       if (data.delete.length) {
         // Also remove from combats.
-        for (const combat of game.combats.entities) {
+        for (const combat of game.combats.contents) {
           if (combat.scene === scene) {
             const combatants = data.delete.map(id => combat.getCombatantByToken(id)).flatMap(c => c ? [c._id] : []);
             if (combatants.length) {
@@ -1407,7 +1407,7 @@ class MultilevelTokens {
     }
   }
 
-  _onPreCreateToken(token, options, userId) {
+  _onPreCreateToken(token, data, options, userId) {
     return this._allowTokenOperation(token.data, options);
   }
 
@@ -1420,7 +1420,7 @@ class MultilevelTokens {
   }
 
   _onPreUpdateToken(token, update, options, userId) {
-    if (this._allowTokenOperation(token, options) || this._isInvalidReplicatedToken(token.parent, token.data)) {
+    if (this._allowTokenOperation(token.data, options) || this._isInvalidReplicatedToken(token.parent, token.data)) {
       return true;
     }
     // Attempt to update replicated token.
@@ -1432,7 +1432,7 @@ class MultilevelTokens {
     if (sourceScene && sourceToken) {
       const newUpdate = duplicate(update);
       newUpdate._id = sourceToken._id;
-      sourceScene.updateEmbeddedEntity(Token.embeddedName, newUpdate, options);
+      sourceScene.updateEmbeddedDocuments(Token.embeddedName, newUpdate, options);
     }
     return false;
   }
@@ -1530,7 +1530,7 @@ class MultilevelTokens {
     }
   }
 
-  _onPreCreateCombatant(combatant, options, userId) {
+  _onPreCreateCombatant(combatant, data, options, userId) {
     const combat = combatant.parent;
     const token = combat.scene.data.tokens.find(t => t.id === combatant.data.tokenId)?.data;
     if (!token || !this._isReplicatedToken(token)) {
