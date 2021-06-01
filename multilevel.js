@@ -706,50 +706,50 @@ class MultilevelTokens {
           if (combat.scene === scene) {
             const combatants = data.delete.map(id => combat.getCombatantByToken(id)).flatMap(c => c ? [c._id] : []);
             if (combatants.length) {
-              promise = promise.then(() => combat.deleteEmbeddedEntity("Combatant", combatants));
+              promise = promise.then(() => combat.deleteEmbeddedDocuments("Combatant", combatants));
             }
           }
         }
-        promise = promise.then(() => scene.deleteEmbeddedEntity(Token.embeddedName, data.delete, options));
+        promise = promise.then(() => scene.deleteEmbeddedDocuments(Token.embeddedName, data.delete, options));
       }
       if (data.updateAnimateDiff.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateAnimateDiff,
-                                                                Object.assign({diff: true}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(Token.embeddedName, data.updateAnimateDiff,
+                                                                   Object.assign({diff: true}, options)));
       }
       if (data.updateAnimated.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateAnimated,
-                                                                Object.assign({diff: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(Token.embeddedName, data.updateAnimated,
+                                                                   Object.assign({diff: false}, options)));
       }
       if (data.updateInstant.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Token.embeddedName, data.updateInstant,
-                                                                Object.assign({diff: false, animate: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(Token.embeddedName, data.updateInstant,
+                                                                   Object.assign({diff: false, animate: false}, options)));
       }
       if (data.updateTile.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Tile.embeddedName, data.updateTile,
-                                                                Object.assign({diff: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(Tile.embeddedName, data.updateTile,
+                                                                   Object.assign({diff: false}, options)));
       }
       if (data.updateWall.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Wall.embeddedName, data.updateWall,
-                                                                Object.assign({diff: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(Wall.embeddedName, data.updateWall,
+                                                                   Object.assign({diff: false}, options)));
       }
       if (data.updateDrawing.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Drawing.embeddedName, data.updateDrawing,
-                                                                Object.assign({diff: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(Drawing.embeddedName, data.updateDrawing,
+                                                                   Object.assign({diff: false}, options)));
       }
       if (data.updateMapNote.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(Note.embeddedName, data.updateMapNote,
-                                                                Object.assign({diff: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(Note.embeddedName, data.updateMapNote,
+                                                                   Object.assign({diff: false}, options)));
       }
       if (data.updateLight.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(AmbientLight.embeddedName, data.updateLight,
-                                                                Object.assign({diff: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(AmbientLight.embeddedName, data.updateLight,
+                                                                   Object.assign({diff: false}, options)));
       }
       if (data.updateSound.length) {
-        promise = promise.then(() => scene.updateEmbeddedEntity(AmbientSound.embeddedName, data.updateSound,
-                                                                Object.assign({diff: false}, options)));
+        promise = promise.then(() => scene.updateEmbeddedDocuments(AmbientSound.embeddedName, data.updateSound,
+                                                                   Object.assign({diff: false}, options)));
       }
       if (data.create.length) {
-        promise = promise.then(() => scene.createEmbeddedEntity(Token.embeddedName, data.create, options));
+        promise = promise.then(() => scene.createEmbeddedDocuments(Token.embeddedName, data.create, options));
       }
     }
     for (const f of requestBatch._extraActions) {
