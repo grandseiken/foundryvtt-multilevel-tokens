@@ -291,8 +291,10 @@ class MultilevelTokens {
   _getSceneScaleFactor(scene) {
     const hexScale = 2 / Math.sqrt(3);
     return {
-      x: scene.data.gridType === GRID_TYPES.HEXODDR || scene.data.gridType === GRID_TYPES.HEXEVENR ? hexScale : 1,
-      y: scene.data.gridType === GRID_TYPES.HEXODDQ || scene.data.gridType === GRID_TYPES.HEXEVENQ ? hexScale : 1,
+      x: scene.data.gridType === CONST.GRID_TYPES.HEXODDR ||
+         scene.data.gridType === CONST.GRID_TYPES.HEXEVENR ? hexScale : 1,
+      y: scene.data.gridType === CONST.GRID_TYPES.HEXODDQ ||
+         scene.data.gridType === CONST.GRID_TYPES.HEXEVENQ ? hexScale : 1,
     };
   }
 
@@ -920,11 +922,11 @@ class MultilevelTokens {
           columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType),
           even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.data.gridType)
         };
-        if (outScene.data.gridType === GRID_TYPES.SQUARE) {
+        if (outScene.data.gridType === CONST.GRID_TYPES.SQUARE) {
           const gridSize = options.dimensions.size;
           position.x = gridSize * Math.round(position.x / gridSize);
           position.y = gridSize * Math.round(position.y / gridSize);
-        } else if (outScene.data.gridType === GRID_TYPES.GRIDLESS) {
+        } else if (outScene.data.gridType === CONST.GRID_TYPES.GRIDLESS) {
           position.x = Math.round(position.x);
           position.y = Math.round(position.y);
         } else {
@@ -1538,7 +1540,7 @@ class MultilevelTokens {
     }
   }
 
-  _onPreCreateToken(document, options, userId) {
+  _onPreCreateToken(token, options, userId) {
     return this._allowTokenOperation(token.data, options);
   }
 
