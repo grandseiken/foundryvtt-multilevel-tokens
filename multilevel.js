@@ -156,7 +156,7 @@ class MultilevelTokens {
   _getActiveGamemasters() {
     return game.users
         .filter(user => user.active && user.role === CONST.USER_ROLES.GAMEMASTER)
-        .map(user => user._id)
+        .map(user => user.id)
         .sort();
   }
 
@@ -165,7 +165,7 @@ class MultilevelTokens {
       return false;
     }
     const activeGamemasters = this._getActiveGamemasters();
-    return activeGamemasters.length === 1 && activeGamemasters[0] === game.user._id;
+    return activeGamemasters.length === 1 && activeGamemasters[0] === game.user.id;
   }
 
   _isPrimaryGamemaster() {
@@ -175,7 +175,7 @@ class MultilevelTokens {
       return false;
     }
     const activeGamemasters = this._getActiveGamemasters();
-    return activeGamemasters.length > 0 && activeGamemasters[0] === game.user._id;
+    return activeGamemasters.length > 0 && activeGamemasters[0] === game.user.id;
   }
 
   _isAuthorisedRegion(drawing) {
@@ -961,7 +961,7 @@ class MultilevelTokens {
         requestBatch.deleteToken(scene, id);
         requestBatch.createToken(outScene, token);
         owners.forEach(user => {
-          requestBatch.extraAction(() => game.socket.emit("pullToScene", outScene._id, user._id));
+          requestBatch.extraAction(() => game.socket.emit("pullToScene", outScene._id, user.id));
         })
       }
     });
@@ -1360,7 +1360,7 @@ class MultilevelTokens {
       enable("mltLevelNumber", isLevel);
       enable("mltLocal", isTeleport || isSource || isTarget);
     };
-    if (this._isUserGamemaster(game.user._id)) {
+    if (this._isUserGamemaster(game.user.id)) {
       mltTab.find("input").on("change", onChange);
     } else {
       mltTab.find("input").prop("disabled", true);
