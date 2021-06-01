@@ -867,10 +867,9 @@ class MultilevelTokens {
         const outerToken = token;
         const outerRegion = region;
         {
-          // TODO: no longer need to create new objects here if we pass in the document object.
-          const token = canvas.tokens.get(outerToken._id) || new Token(outerToken, scene);
+          const token = scene.data.tokens.get(outerToken._id);
           const actor = token.actor;
-          const region = canvas.drawings.get(outerRegion[0]._id) || new Drawing(outerRegion[0], scene);
+          const region = scene.data.drawings.get(outerRegion[0]._id);
           const event = outerRegion[1];
           const args = this._getMacroArgs(outerRegion[0]);
           try {
