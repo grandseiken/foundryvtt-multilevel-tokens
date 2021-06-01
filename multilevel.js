@@ -1185,7 +1185,6 @@ class MultilevelTokens {
     const contents = `
     <div class="tab" data-tab="multilevel-tokens">
       <p class="notes">${game.i18n.localize("MLT.TabNotes")}</p>
-      <hr>
       <h3 class="form-header">
         <i class="fas fa-random"/></i> ${game.i18n.localize("MLT.SectionTeleports")}
       </h3>
@@ -1223,7 +1222,6 @@ class MultilevelTokens {
         <input type="checkbox" name="mltLocal" data-dtype="Boolean"/>
         <p class="notes">${game.i18n.localize("MLT.FieldSceneLocalNotes")}</p>
       </div>
-      <hr>
       <h3 class="form-header">
         <i class="far fa-clone"/></i> ${game.i18n.localize("MLT.SectionTokenCloning")}
       </h3>
@@ -1261,7 +1259,6 @@ class MultilevelTokens {
         <label for="mltFlipY">${game.i18n.localize("MLT.FieldMirrorVertically")}</label>
         <input type="checkbox" name="mltFlipY" data-dtype="Boolean"/>
       </div>
-      <hr>
       <h3 class="form-header">
         <i class="fas fa-magic"/></i> ${game.i18n.localize("MLT.SectionMacroTriggers")}
       </h3>
@@ -1288,7 +1285,6 @@ class MultilevelTokens {
         <input type="text" name="mltMacroArgs" data-dtype="String"/>
         <p class="notes">${game.i18n.localize("MLT.FieldAdditionalArgumentsNotes")}</p>
       </div>
-      <hr>
       <h3 class="form-header">
         <i class="fas fa-bars"/></i> ${game.i18n.localize("MLT.SectionLevels")}
       </h3>
