@@ -1263,7 +1263,7 @@ class MultilevelTokens {
       const isSource = isChecked("source");
       const isTarget = isChecked("target");
       const isMacro = isChecked("macroEnter") || isChecked("macroLeave") || isChecked("macroMove");
-      const isLevel = isChecked("lLevel");
+      const isLevel = isChecked("level");
 
       enable("teleportId", isTeleport);
       enable("animate", isTeleport);
