@@ -146,6 +146,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 # Version history
 
 * **1.5.0**:
+  * Updated for compatibility with Foundry 0.8.x series. No longer compatible with 0.7.x series.
+  * Added German localization (contributed by [CarnVanBeck](https://github.com/CarnVanBeck)).
 * **1.4.2**:
   * Fixed ordering of macro region triggers. Triggers for tokens leaving should now correctly run before triggers for entering.
   * Cloned tokens are no longer needlessly deleted and recreated when ensuring consistency on startup (contributed by [DemianWright](https://github.com/DemianWright)).
