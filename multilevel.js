@@ -1470,7 +1470,7 @@ class MultilevelTokens {
         ('x' in update || 'y' in update)) {
       // Workaround for issues with a non-animated position update on a token that is already animating.
       const canvasToken = canvas.tokens.placeables.find(t => t.id === token.data._id);
-      if (canvasToken && canvasToken._movement) {
+      if (canvasToken) {
         canvasToken._movement = null;
         canvasToken.stopAnimation();
         canvasToken._onUpdate({x: token.data.x, y: token.data.y}, {animate: false});
@@ -1630,6 +1630,26 @@ class MultilevelTokens {
     }
   }
 }
+
+// Patch CanvasAnimation to work around https://gitlab.com/foundrynet/foundryvtt/-/issues/5335
+CanvasAnimation._animatePromise = function(fn, context, name, attributes, duration, ontick) {
+  if (name) this.terminateAnimation(name);
+  let animate;
+  return new Promise((resolve, reject) => {
+    animate = dt => fn(dt, resolve, reject, attributes, duration, ontick);
+    this.ticker.add(animate, context);
+    if (name) this.animations[name] = {fn: animate, context, resolve};
+  })
+  .catch(err => {
+    console.error(err)
+  })
+  .finally(() => {
+    this.ticker.remove(animate, context);
+    if (name && name in this.animations && this.animations[name].fn === animate) {
+      delete this.animations[name];
+    }
+  });
+};
 
 console.log(MLT.LOG_PREFIX, "Loaded");
 Hooks.on('init', () => game.multilevel = new MultilevelTokens());
