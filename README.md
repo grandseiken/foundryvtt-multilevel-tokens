@@ -145,6 +145,9 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.5.1**:
+  * Fixed that regions defined using the polygon drawing tool didn't function properly after the 0.8.x update.
+  * Worked around visual glitches that occurred when a token was moved into a teleport region using the CTRL+drag measured movement action.
 * **1.5.0**:
   * Updated for compatibility with Foundry 0.8.x series. No longer compatible with 0.7.x series.
   * Added German localization (contributed by [CarnVanBeck](https://github.com/CarnVanBeck)).
