@@ -281,6 +281,30 @@ class MultilevelTokens {
            this._isReplicationForSourceRegion(scene, region, targetScene, targetToken);
   }
 
+  _getDrawingBounds(drawing) {
+    if (drawing.type === CONST.DRAWING_TYPES.POLYGON) {
+      let xMin = Number.MAX_VALUE;
+      let xMax = Number.MIN_VALUE;
+      let yMin = Number.MAX_VALUE;
+      let yMax = Number.MIN_VALUE;
+      drawing.points.forEach(p => {
+         const x = p[0] + drawing.x;
+         const y = p[1] + drawing.y;
+         xMin = Math.min(xMin, x);
+         xMax = Math.max(xMax, x);
+         yMin = Math.min(yMin, y);
+         yMax = Math.max(yMax, y);
+      });
+      return {
+        x: xMin,
+        y: yMin,
+        width: xMax - xMin,
+        height: yMax - yMin,
+      }
+    }
+    return drawing;
+  }
+
   _getDrawingCentre(drawing) {
     return {
       x: drawing.x + drawing.width / 2,
@@ -319,8 +343,9 @@ class MultilevelTokens {
       point = this._rotate(this._getDrawingCentre(region), point, -region.rotation);
     }
 
-    const inBox = point.x >= region.x && point.x <= region.x + region.width &&
-                  point.y >= region.y && point.y <= region.y + region.height;
+    const boundingBox = this._getDrawingBounds(region);
+    const inBox = point.x >= boundingBox.x && point.x <= boundingBox.x + boundingBox.width &&
+                  point.y >= boundingBox.y && point.y <= boundingBox.y + boundingBox.height;
     if (!inBox) {
       return false;
     }
@@ -371,15 +396,17 @@ class MultilevelTokens {
       point = this._rotate(this._getDrawingCentre(sourceRegion), point, -sourceRegion.rotation);
     }
 
-    const px = (point.x - sourceRegion.x) * (targetRegion.width / sourceRegion.width);
-    const py = (point.y - sourceRegion.y) * (targetRegion.height / sourceRegion.height);
+    const sourceBounds = this._getDrawingBounds(sourceRegion);
+    const targetBounds = this._getDrawingBounds(targetRegion);
+    const px = (point.x - sourceBounds.x) * (targetBounds.width / sourceBounds.width);
+    const py = (point.y - sourceBounds.y) * (targetBounds.height / sourceBounds.height);
     let target = {
       x: this._hasRegionFlag(targetRegion, "flipX")
-          ? targetRegion.x + targetRegion.width - px
-          : targetRegion.x + px,
+          ? targetBounds.x + targetBounds.width - px
+          : targetBounds.x + px,
       y: this._hasRegionFlag(targetRegion, "flipY")
-          ? targetRegion.y + targetRegion.height - py
-          : targetRegion.y + py,
+          ? targetBounds.y + targetBounds.height - py
+          : targetBounds.y + py,
     };
     if (targetRegion.rotation) {
       target = this._rotate(this._getDrawingCentre(targetRegion), target, targetRegion.rotation);
@@ -391,11 +418,13 @@ class MultilevelTokens {
     const extraScale = this._getRegionFlag(targetRegion, "scale") || 1;
     const sourceScale = this._getSceneScaleFactor(sourceScene);
     const targetScale = this._getSceneScaleFactor(targetScene);
+    const sourceBounds = this._getDrawingBounds(sourceRegion);
+    const targetBounds = this._getDrawingBounds(targetRegion);
     const scale = {
       x: Math.abs(extraScale * (sourceScale.x / targetScale.x) *
-            (targetRegion.width / targetScene.data.grid) / (sourceRegion.width / sourceScene.data.grid)),
+            (targetBounds.width / targetScene.data.grid) / (sourceBounds.width / sourceScene.data.grid)),
       y: Math.abs(extraScale * (sourceScale.y / targetScale.y) *
-            (targetRegion.height / targetScene.data.grid) / (sourceRegion.height / sourceScene.data.grid)),
+            (targetBounds.height / targetScene.data.grid) / (sourceBounds.height / sourceScene.data.grid)),
     };
     const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
@@ -1441,7 +1470,7 @@ class MultilevelTokens {
         ('x' in update || 'y' in update)) {
       // Workaround for issues with a non-animated position update on a token that is already animating.
       const canvasToken = canvas.tokens.placeables.find(t => t.id === token.data._id);
-      if (canvasToken && canvasToken._movement) {
+      if (canvasToken) {
         canvasToken._movement = null;
         canvasToken.stopAnimation();
         canvasToken._onUpdate({x: token.data.x, y: token.data.y}, {animate: false});
@@ -1601,6 +1630,26 @@ class MultilevelTokens {
     }
   }
 }
+
+// Patch CanvasAnimation to work around https://gitlab.com/foundrynet/foundryvtt/-/issues/5335
+CanvasAnimation._animatePromise = function(fn, context, name, attributes, duration, ontick) {
+  if (name) this.terminateAnimation(name);
+  let animate;
+  return new Promise((resolve, reject) => {
+    animate = dt => fn(dt, resolve, reject, attributes, duration, ontick);
+    this.ticker.add(animate, context);
+    if (name) this.animations[name] = {fn: animate, context, resolve};
+  })
+  .catch(err => {
+    console.error(err)
+  })
+  .finally(() => {
+    this.ticker.remove(animate, context);
+    if (name && name in this.animations && this.animations[name].fn === animate) {
+      delete this.animations[name];
+    }
+  });
+};
 
 console.log(MLT.LOG_PREFIX, "Loaded");
 Hooks.on('init', () => game.multilevel = new MultilevelTokens());
