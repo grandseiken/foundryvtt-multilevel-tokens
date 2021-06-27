@@ -914,7 +914,7 @@ class MultilevelTokens {
 
   _overrideNotesDisplayForToken(scene, token) {
     const actor = game.actors.get(token.actorId);
-    if (!actor || !actor.hasPerm(game.user, "OWNER")) {
+    if (!actor || !actor.testUserPermission(game.user, "OWNER")) {
       return;
     }
 
@@ -988,7 +988,7 @@ class MultilevelTokens {
         token.y = position.y;
 
         const actor = game.actors.get(token.actorId);
-        const owners = actor ? game.users.filter(u => !u.isGM && actor.hasPerm(u, "OWNER")) : [];
+        const owners = actor ? game.users.filter(u => !u.isGM && actor.testUserPermission(u, "OWNER")) : [];
         if (!scene.data.tokens.find(t => t.id === id)) {
           // If the token has already gone, don't teleport it. Otherwise we could end up with things like the token getting
           // duplicated multiple times.
@@ -1043,7 +1043,7 @@ class MultilevelTokens {
           return true;
         }
         const actor = game.actors.get(token.data.actorId);
-        return actor && actor.hasPerm(user, "OWNER");
+        return actor && actor.testUserPermission(user, "OWNER");
       }).map(t => t.data);
       this._activateTeleport(scene, inRegion, tokens);
     }
@@ -1630,26 +1630,6 @@ class MultilevelTokens {
     }
   }
 }
-
-// Patch CanvasAnimation to work around https://gitlab.com/foundrynet/foundryvtt/-/issues/5335
-CanvasAnimation._animatePromise = function(fn, context, name, attributes, duration, ontick) {
-  if (name) this.terminateAnimation(name);
-  let animate;
-  return new Promise((resolve, reject) => {
-    animate = dt => fn(dt, resolve, reject, attributes, duration, ontick);
-    this.ticker.add(animate, context);
-    if (name) this.animations[name] = {fn: animate, context, resolve};
-  })
-  .catch(err => {
-    console.error(err)
-  })
-  .finally(() => {
-    this.ticker.remove(animate, context);
-    if (name && name in this.animations && this.animations[name].fn === animate) {
-      delete this.animations[name];
-    }
-  });
-};
 
 console.log(MLT.LOG_PREFIX, "Loaded");
 Hooks.on('init', () => game.multilevel = new MultilevelTokens());

@@ -145,6 +145,9 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.5.2**:
+  * Removed workaround for issues with CTRL+drag measured movement that is now unnecessary on Foundry 0.8.7.
+  * Fixed use of deprecated `Document#hasPerm` method.
 * **1.5.1**:
   * Fixed that regions defined using the polygon drawing tool didn't function properly after the 0.8.x update.
   * Worked around visual glitches that occurred when a token was moved into a teleport region using the CTRL+drag measured movement action.
