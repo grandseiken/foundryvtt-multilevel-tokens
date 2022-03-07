@@ -145,6 +145,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.5.3**:
+  * Fixed interaction between cloned tokens and the new Active Effects system and combat updates in Foundry version 9.
 * **1.5.2**:
   * Removed workaround for issues with CTRL+drag measured movement that is now unnecessary on Foundry 0.8.7.
   * Fixed use of deprecated `Document#hasPerm` method.

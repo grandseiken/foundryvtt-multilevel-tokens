@@ -122,6 +122,8 @@ class MultilevelTokens {
     Hooks.on("createToken", this._onCreateToken.bind(this));
     Hooks.on("preUpdateToken", this._onPreUpdateToken.bind(this));
     Hooks.on("updateToken", this._onUpdateToken.bind(this));
+    Hooks.on("createActiveEffect", this._onUpdateActiveEffect.bind(this));
+    Hooks.on("deleteActiveEffect", this._onUpdateActiveEffect.bind(this));
     Hooks.on("controlToken", this._onControlToken.bind(this));
     Hooks.on("preDeleteToken", this._onPreDeleteToken.bind(this));
     Hooks.on("deleteToken", this._onDeleteToken.bind(this));
@@ -414,6 +416,17 @@ class MultilevelTokens {
     return target;
   }
 
+  _duplicateTokenData(token) {
+    const data = duplicate(token.data);
+    if (token.actor && token.actor.data && token.actor.data.effects) {
+      data.actorData = {"effects": []};
+      for (var i = 0; i < token.actor.data.effects.contents.length; ++i) {
+        data.actorData.effects.push({"icon": token.actor.data.effects.contents[i].data.icon});
+      }
+    }
+    return data;
+  }
+
   _getReplicatedTokenCreateData(sourceScene, token, sourceRegion, targetScene, targetRegion) {
     const extraScale = this._getRegionFlag(targetRegion, "scale") || 1;
     const sourceScale = this._getSceneScaleFactor(sourceScene);
@@ -447,6 +460,15 @@ class MultilevelTokens {
     // height is reduced.
     if (scale.y < scale.x) {
       data.scale = data.scale ? data.scale * scale.y / scale.x : scale.y / scale.x;
+    }
+    if (data.actorData) {
+      if (data.actorData.effects) {
+        data.effects = [];
+        for (var i = 0; i < data.actorData.effects.length; ++i) {
+          data.effects.push(data.actorData.effects[i].icon);
+        }
+      }
+      delete data.actorData;
     }
 
     const targetPosition = this._getTokenPositionFromCentre(targetScene, data, targetCentre);
@@ -575,7 +597,7 @@ class MultilevelTokens {
   _getTokensToReplicateForRegion(scene, sourceRegion) {
     return scene.data.tokens
         .filter(token => this._isTokenInRegion(scene, token.data, sourceRegion) && this._isProperToken(token.data))
-        .map(t => t.data);
+        .map(t => this._duplicateTokenData(t));
   }
 
   _getInvalidReplicatedTokensForScene(scene) {
@@ -730,15 +752,6 @@ class MultilevelTokens {
         continue;
       }
       if (data.delete.length) {
-        // Also remove from combats.
-        for (const combat of game.combats.contents) {
-          if (combat.scene === scene) {
-            const combatants = data.delete.map(id => combat.getCombatantByToken(id)).flatMap(c => c ? [c._id] : []);
-            if (combatants.length) {
-              promise = promise.then(() => combat.deleteEmbeddedDocuments("Combatant", combatants));
-            }
-          }
-        }
         promise = promise.then(() => scene.deleteEmbeddedDocuments(Token.embeddedName, data.delete, options));
       }
       if (data.updateAnimateDiff.length) {
@@ -1441,7 +1454,7 @@ class MultilevelTokens {
 
   _onCreateToken(token, options, userId) {
     if (this._isProperToken(token.data)) {
-      const t = duplicate(token.data);
+      const t = this._duplicateTokenData(token);
       this._queueAsync(requestBatch => this._replicateTokenToAllRegions(requestBatch, token.parent, t));
       this._setLastTeleport(token.parent, token.data);
     }
@@ -1452,7 +1465,7 @@ class MultilevelTokens {
       return true;
     }
     // Attempt to update replicated token.
-    if ('x' in update || 'y' in update || 'rotation' in update || 'actorId' in update) {
+    if ('x' in update || 'y' in update || 'rotation' in update || 'effects' in update || 'actorId' in update) {
       return false;
     }
     const sourceScene = this._getSourceSceneForReplicatedToken(token.parent, token.data);
@@ -1460,7 +1473,7 @@ class MultilevelTokens {
     if (sourceScene && sourceToken) {
       const newUpdate = duplicate(update);
       newUpdate._id = sourceToken._id;
-      sourceScene.updateEmbeddedDocuments(Token.embeddedName, newUpdate, options);
+      sourceScene.updateEmbeddedDocuments(Token.embeddedName, [newUpdate], options);
     }
     return false;
   }
@@ -1485,7 +1498,7 @@ class MultilevelTokens {
       this._overrideNotesDisplayForToken(token.parent, token.data);
     }
     if (this._isProperToken(token.data)) {
-      const t = duplicate(token.data);
+      const t = this._duplicateTokenData(token);
       this._queueAsync(requestBatch =>
           this._updateAllReplicatedTokensForToken(requestBatch, token.parent, t, Object.keys(update)));
       if ('x' in update || 'y' in update) {
@@ -1497,6 +1510,21 @@ class MultilevelTokens {
         this._doTeleport(token.parent, token.data) || this._doLevelTeleport(token.parent, token.data);
       }
     }
+  }
+
+  _onUpdateActiveEffect(effect, options, userId) {
+    console.log("hi!");
+    const actor = effect.parent;
+    this._queueAsync(requestBatch => {
+      game.scenes.forEach(scene => {
+        scene.tokens.forEach(token => {
+          if (token.actor && token.actor == actor) {
+            const t = this._duplicateTokenData(token);
+            this._updateAllReplicatedTokensForToken(requestBatch, scene, t, ["effects"]);
+          }
+        });
+      });
+    });
   }
 
   _onControlToken(token, control) {
@@ -1511,7 +1539,7 @@ class MultilevelTokens {
 
   _onDeleteToken(token, options, userId) {
     if (this._isProperToken(token.data)) {
-      const t = duplicate(token.data);
+      const t = this._duplicateTokenData(token);
       this._queueAsync(requestBatch => this._removeReplicationsForSourceToken(requestBatch, token.parent, t));
       delete this._lastTeleport[token.data._id];
       delete this._lastMacro[token.data._id];
@@ -1572,9 +1600,14 @@ class MultilevelTokens {
     if (sourceToken) {
       const activeCombatant = combat.getCombatantByToken(sourceToken._id);
       if (activeCombatant) {
-        combat.deleteEmbeddedEntity("Combatant", activeCombatant._id);
+        combat.deleteEmbeddedDocuments("Combatant", [activeCombatant.data._id]);
       } else {
-        combat.createEmbeddedEntity("Combatant", { tokenId: sourceToken._id, hidden: sourceToken.hidden});
+        combat.createEmbeddedDocuments("Combatant", [{
+            tokenId: sourceToken._id,
+            sceneId: combat.scene.id,
+            actorId: sourceToken.actorId,
+            hidden: sourceToken.hidden
+        }]);
       }
     }
     return false;
