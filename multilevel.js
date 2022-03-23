@@ -1396,7 +1396,7 @@ class MultilevelTokens {
       this._queueAsync(requestBatch => {
         scene.data.drawings.filter(d => !game.users.find(u => u.id === d.data.author)).forEach(d => {
           requestBatch.updateDrawing(scene, {
-            _id: d._id,
+            _id: d.id || d._id,
             author: game.user.id,
           });
         });
