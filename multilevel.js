@@ -421,7 +421,9 @@ class MultilevelTokens {
     if (token.actor && token.actor.data && token.actor.data.effects) {
       data.actorData = {"effects": []};
       for (var i = 0; i < token.actor.data.effects.contents.length; ++i) {
-        data.actorData.effects.push({"icon": token.actor.data.effects.contents[i].data.icon});
+        if(token.actor.data.effects.contents[i].isTemporary) {
+          data.actorData.effects.push({"icon": token.actor.data.effects.contents[i].data.icon});
+        }
       }
     }
     return data;
