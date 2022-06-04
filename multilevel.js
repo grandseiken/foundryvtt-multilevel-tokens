@@ -418,10 +418,10 @@ class MultilevelTokens {
 
   _duplicateTokenData(token) {
     const data = duplicate(token.data);
-    if (token.actor && token.actor.data && token.actor.data.effects) {
+    if (token.actor && token.actor.temporaryEffects) {
       data.actorData = {"effects": []};
-      for (var i = 0; i < token.actor.data.effects.contents.length; ++i) {
-        data.actorData.effects.push({"icon": token.actor.data.effects.contents[i].data.icon});
+      for (var i = 0; i < token.actor.temporaryEffects.length; ++i) {
+        data.actorData.effects.push({"icon": token.actor.temporaryEffects[i].data.icon});
       }
     }
     return data;
