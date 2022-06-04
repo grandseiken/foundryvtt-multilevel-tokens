@@ -145,6 +145,9 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.5.4**:
+  * Fix in handling of drawings in scene import.
+  * Only show temporary active effects on cloned tokens.
 * **1.5.3**:
   * Fixed interaction between cloned tokens and the new Active Effects system and combat updates in Foundry version 9.
 * **1.5.2**:
