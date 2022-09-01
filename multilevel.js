@@ -1560,7 +1560,7 @@ class MultilevelTokens {
   }
 
   _onHoverNote(note, hover) {
-    if (!hover || !this._getTeleportRegionsForMapNote(note.scene, note.data).length) {
+    if (!hover || !this._getTeleportRegionsForMapNote(note.scene, note).length) {
       return;
     }
     if (!note.mouseInteractionManager.mltOverride) {
@@ -1571,7 +1571,7 @@ class MultilevelTokens {
       note.mouseInteractionManager.permissions.clickLeft = () => true;
       note.mouseInteractionManager.callbacks.clickLeft = (event) => {
         if (this._isPrimaryGamemaster()) {
-          this._doMapNoteTeleport(note.scene, note.data, game.user);
+          this._doMapNoteTeleport(note.scene, note, game.user);
         } else {
           game.socket.emit(`module.${MLT.SCOPE}`, {
             operation: "clickMapNote",
