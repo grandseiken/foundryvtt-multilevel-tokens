@@ -1626,17 +1626,17 @@ class MultilevelTokens {
     if (!options.chatBubble || !canvas.ready || !game.settings.get(MLT.SCOPE, MLT.SETTING_AUTO_CHAT_BUBBLE)) {
       return;
     }
-    const scene = game.scenes.get(message.data.speaker.scene);
+    const scene = game.scenes.get(message.speaker.scene);
     if (!scene) {
       return;
     }
-    const token = scene.tokens.find(t => t.id === message.data.speaker.token)?.data;
+    const token = scene.tokens.find(t => t.id === message.speaker.token)?.data;
     if (!token) {
       return;
     }
     this._getAllLinkedCanvasTokens(token).forEach(t => {
       if (t.scene !== scene || t.data._id !== token._id) {
-        canvas.hud.bubbles.say(t, message.data.content, {emote: message.data.type === CONST.CHAT_MESSAGE_TYPES_EMOTE});
+        canvas.hud.bubbles.say(t, message.content, {emote: message.type === CONST.CHAT_MESSAGE_TYPES_EMOTE});
       }
     })
   }
