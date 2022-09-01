@@ -1589,7 +1589,7 @@ class MultilevelTokens {
 
   _onPreCreateCombatant(combatant, data, options, userId) {
     const combat = combatant.parent;
-    const token = combat.scene.tokens.find(t => t.id === combatant.data.tokenId)?.data;
+    const token = combat.scene.tokens.find(t => t.id === combatant.tokenId)?.data;
     if (!token || !this._isReplicatedToken(token)) {
       return true;
     }
@@ -1601,7 +1601,7 @@ class MultilevelTokens {
     if (sourceToken) {
       const activeCombatant = combat.getCombatantByToken(sourceToken._id);
       if (activeCombatant) {
-        combat.deleteEmbeddedDocuments("Combatant", [activeCombatant.data._id]);
+        combat.deleteEmbeddedDocuments("Combatant", [activeCombatant._id]);
       } else {
         combat.createEmbeddedDocuments("Combatant", [{
             tokenId: sourceToken._id,
