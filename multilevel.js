@@ -965,6 +965,7 @@ class MultilevelTokens {
           this._mapPosition(this._getTokenCentre(scene, token), inRegion, outRegion));
       if (this._hasRegionFlag(outRegion, "snapToGrid")) {
         const options = {
+          // NOTE: this may need to get updated
           dimensions: Canvas.getDimensions(outScene.data),
           columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type),
           even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type)
