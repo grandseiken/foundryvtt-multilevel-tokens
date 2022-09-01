@@ -229,7 +229,7 @@ class MultilevelTokens {
 
   _getSourceTokenForReplicatedToken(scene, token) {
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
-    return sourceScene && sourceScene.data.tokens.find(t => t.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN])?.data;
+    return sourceScene && sourceScene.tokens.find(t => t.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN])?.data;
   }
 
   _getAllLinkedCanvasTokens(token) {
@@ -257,7 +257,7 @@ class MultilevelTokens {
       return true;
     }
     return !sourceScene.data.drawings.some(d => d.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
-           !sourceScene.data.tokens.some(t => t.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
+           !sourceScene.tokens.some(t => t.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
   }
 
   _isReplicationForSourceToken(sourceScene, sourceToken, targetScene, targetToken) {
@@ -562,7 +562,7 @@ class MultilevelTokens {
   }
 
   _getReplicatedTokensForSourceToken(sourceScene, sourceToken) {
-    return game.scenes.map(scene => scene.data.tokens
+    return game.scenes.map(scene => scene.tokens
         .filter(token => this._isReplicatedToken(token.data) &&
                          this._isReplicationForSourceToken(sourceScene, sourceToken, scene, token.data))
         .map(token => [scene, token.data])
@@ -579,7 +579,7 @@ class MultilevelTokens {
   }
 
   _getReplicatedTokensForTargetRegion(targetScene, targetRegion) {
-    return targetScene.data.tokens
+    return targetScene.tokens
         .filter(token => this._isReplicatedToken(token.data) &&
                          this._isReplicationForTargetRegion(targetScene, targetRegion, targetScene, token.data))
         .map(token => [targetScene, token.data]);
@@ -595,13 +595,13 @@ class MultilevelTokens {
   }
 
   _getTokensToReplicateForRegion(scene, sourceRegion) {
-    return scene.data.tokens
+    return scene.tokens
         .filter(token => this._isTokenInRegion(scene, token.data, sourceRegion) && this._isProperToken(token.data))
         .map(t => this._duplicateTokenData(t));
   }
 
   _getInvalidReplicatedTokensForScene(scene) {
-    return scene.data.tokens
+    return scene.tokens
         .filter(token => this._isReplicatedToken(token.data) && this._isInvalidReplicatedToken(scene, token.data))
         .map(t => t.data);
   }
@@ -651,7 +651,7 @@ class MultilevelTokens {
           if (!sourceScene) {
             return;
           }
-          const sourceToken = sourceScene.data.tokens.find(t => t.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN])?.data;
+          const sourceToken = sourceScene.tokens.find(t => t.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN])?.data;
           const sourceRegion = sourceScene.data.drawings.find(d => d.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION])?.data;
           if (sourceToken && sourceRegion) {
             this._updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
@@ -841,7 +841,7 @@ class MultilevelTokens {
 
   _initializeLastTeleportAndMacroTracking() {
     if (game.user.isGM) {
-      game.scenes.forEach(scene => scene.data.tokens.forEach(token => {
+      game.scenes.forEach(scene => scene.tokens.forEach(token => {
         this._setLastTeleport(scene, token.data);
         const macroRegions = this._getFlaggedRegionsContainingToken(scene, token.data, ["macroEnter", "macroLeave", "macroMove"]);
         if (macroRegions.length) {
@@ -909,7 +909,7 @@ class MultilevelTokens {
         const outerToken = token;
         const outerRegion = region;
         {
-          const token = scene.data.tokens.get(outerToken._id);
+          const token = scene.tokens.get(outerToken._id);
           const actor = token.actor;
           const region = scene.data.drawings.get(outerRegion[0]._id);
           const event = outerRegion[1];
@@ -1002,7 +1002,7 @@ class MultilevelTokens {
 
         const actor = game.actors.get(token.actorId);
         const owners = actor ? game.users.filter(u => !u.isGM && actor.testUserPermission(u, "OWNER")) : [];
-        if (!scene.data.tokens.find(t => t.id === id)) {
+        if (!scene.tokens.find(t => t.id === id)) {
           // If the token has already gone, don't teleport it. Otherwise we could end up with things like the token getting
           // duplicated multiple times.
           continue;
@@ -1048,7 +1048,7 @@ class MultilevelTokens {
     }
 
     for (const inRegion of inRegions) {
-      const tokens = scene.data.tokens.filter(token => {
+      const tokens = scene.tokens.filter(token => {
         if (!this._isProperToken(token.data) || !this._isTokenInRegion(scene, token.data, inRegion)) {
           return false;
         }
@@ -1073,7 +1073,7 @@ class MultilevelTokens {
       return false;
     }
 
-    const allStairTokens = scene.data.tokens.filter(t => t.data.name === MLT.TOKEN_STAIRS).map(t => t.data);
+    const allStairTokens = scene.tokens.filter(t => t.data.name === MLT.TOKEN_STAIRS).map(t => t.data);
     const sourceStairTokens =
         allStairTokens.filter(t => this._isPointInToken(scene, this._getTokenCentre(scene, token), t));
     if (!sourceStairTokens.length) {
@@ -1588,7 +1588,7 @@ class MultilevelTokens {
 
   _onPreCreateCombatant(combatant, data, options, userId) {
     const combat = combatant.parent;
-    const token = combat.scene.data.tokens.find(t => t.id === combatant.data.tokenId)?.data;
+    const token = combat.scene.tokens.find(t => t.id === combatant.data.tokenId)?.data;
     if (!token || !this._isReplicatedToken(token)) {
       return true;
     }
@@ -1629,7 +1629,7 @@ class MultilevelTokens {
     if (!scene) {
       return;
     }
-    const token = scene.data.tokens.find(t => t.id === message.data.speaker.token)?.data;
+    const token = scene.tokens.find(t => t.id === message.data.speaker.token)?.data;
     if (!token) {
       return;
     }
