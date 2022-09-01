@@ -7,7 +7,7 @@
 
   "author": "zstix",
 
-  "version": "1.5.4-patch.1",
+  "version": "1.5.4-patch.2",
 
   "minimumCoreVersion": "10",
 
@@ -68,8 +68,8 @@
   ],
 
   "url": "https://github.com/zstix/foundryvtt-multilevel-tokens",
-
-  "manifest": "https://raw.githubusercontent.com/zstix/foundryvtt-multilevel-tokens/zstix/v10/module.json",
+
+  "manifest": "https://raw.githubusercontent.com/zstix/foundryvtt-multilevel-tokens/zstix/v10/module.json",
 
   "download": "https://github.com/zstix/foundryvtt-multilevel-tokens/releases/latest/download/module.zip"
 }
