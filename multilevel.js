@@ -1656,7 +1656,7 @@ class MultilevelTokens {
       if (!scene || !user) {
         return;
       }
-      const note = scene.data.notes.find(note => note.id === data.note)?.data;
+      const note = scene.notes.find(note => note.id === data.note)?.data;
       if (note) {
         this._doMapNoteTeleport(scene, note, user);
       }
