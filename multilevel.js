@@ -327,16 +327,16 @@ class MultilevelTokens {
   _getTokenCentre(scene, token) {
     const s = this._getSceneScaleFactor(scene);
     return {
-      x: token.x + token.width * s.x * scene.data.grid / 2,
-      y: token.y + token.height * s.y * scene.data.grid / 2
+      x: token.x + token.width * s.x * scene.grid / 2,
+      y: token.y + token.height * s.y * scene.grid / 2
     };
   }
 
   _getTokenPositionFromCentre(scene, token, centre) {
     const s = this._getSceneScaleFactor(scene);
     return {
-      x: centre.x - token.width * s.x * scene.data.grid / 2,
-      y: centre.y - token.height * s.y * scene.data.grid / 2
+      x: centre.x - token.width * s.x * scene.grid / 2,
+      y: centre.y - token.height * s.y * scene.grid / 2
     }
   }
 
@@ -389,8 +389,8 @@ class MultilevelTokens {
   }
 
   _isPointInToken(scene, point, containingToken) {
-    return containingToken.x <= point.x && point.x <= containingToken.x + (containingToken.width * scene.data.grid) &&
-           containingToken.y <= point.y && point.y <= containingToken.y + (containingToken.height * scene.data.grid);
+    return containingToken.x <= point.x && point.x <= containingToken.x + (containingToken.width * scene.grid) &&
+           containingToken.y <= point.y && point.y <= containingToken.y + (containingToken.height * scene.grid);
   }
 
   _mapPosition(point, sourceRegion, targetRegion) {
@@ -435,9 +435,9 @@ class MultilevelTokens {
     const targetBounds = this._getDrawingBounds(targetRegion);
     const scale = {
       x: Math.abs(extraScale * (sourceScale.x / targetScale.x) *
-            (targetBounds.width / targetScene.data.grid) / (sourceBounds.width / sourceScene.data.grid)),
+            (targetBounds.width / targetScene.grid) / (sourceBounds.width / sourceScene.grid)),
       y: Math.abs(extraScale * (sourceScale.y / targetScale.y) *
-            (targetBounds.height / targetScene.data.grid) / (sourceBounds.height / sourceScene.data.grid)),
+            (targetBounds.height / targetScene.grid) / (sourceBounds.height / sourceScene.grid)),
     };
     const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
