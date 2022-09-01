@@ -317,10 +317,10 @@ class MultilevelTokens {
   _getSceneScaleFactor(scene) {
     const hexScale = 2 / Math.sqrt(3);
     return {
-      x: scene.gridType === CONST.GRID_TYPES.HEXODDR ||
-         scene.gridType === CONST.GRID_TYPES.HEXEVENR ? hexScale : 1,
-      y: scene.gridType === CONST.GRID_TYPES.HEXODDQ ||
-         scene.gridType === CONST.GRID_TYPES.HEXEVENQ ? hexScale : 1,
+      x: scene.grid.type === CONST.GRID_TYPES.HEXODDR ||
+         scene.grid.type === CONST.GRID_TYPES.HEXEVENR ? hexScale : 1,
+      y: scene.grid.type === CONST.GRID_TYPES.HEXODDQ ||
+         scene.grid.type === CONST.GRID_TYPES.HEXEVENQ ? hexScale : 1,
     };
   }
 
@@ -966,14 +966,14 @@ class MultilevelTokens {
       if (this._hasRegionFlag(outRegion, "snapToGrid")) {
         const options = {
           dimensions: Canvas.getDimensions(outScene.data),
-          columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.gridType),
-          even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.gridType)
+          columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type),
+          even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type)
         };
-        if (outScene.gridType === CONST.GRID_TYPES.SQUARE) {
+        if (outScene.grid.type === CONST.GRID_TYPES.SQUARE) {
           const gridSize = options.dimensions.size;
           position.x = gridSize * Math.round(position.x / gridSize);
           position.y = gridSize * Math.round(position.y / gridSize);
-        } else if (outScene.gridType === CONST.GRID_TYPES.GRIDLESS) {
+        } else if (outScene.grid.type === CONST.GRID_TYPES.GRIDLESS) {
           position.x = Math.round(position.x);
           position.y = Math.round(position.y);
         } else {
