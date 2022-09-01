@@ -249,14 +249,14 @@ class MultilevelTokens {
   }
 
   _isInvalidReplicatedToken(scene, token) {
-    if (!scene.data.drawings.some(d => d.id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
+    if (!scene.drawings.some(d => d.id === token.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])) {
       return true;
     }
     const sourceScene = this._getSourceSceneForReplicatedToken(scene, token);
     if (!sourceScene) {
       return true;
     }
-    return !sourceScene.data.drawings.some(d => d.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
+    return !sourceScene.drawings.some(d => d.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION]) ||
            !sourceScene.tokens.some(t => t.id === token.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN]);
   }
 
@@ -503,11 +503,11 @@ class MultilevelTokens {
     }
     const flagMatch = d => this._hasRegionFlag(d, filterFlags) && this._getRegionFlag(d, idFlag) === id;
     if (this._hasRegionFlag(region, "local")) {
-      return scene.data.drawings
+      return scene.drawings
           .filter(d => d.id !== region._id && flagMatch(d.data))
           .map(result => [region, scene, result.data]);
     }
-    return game.scenes.map(resultScene => resultScene.data.drawings
+    return game.scenes.map(resultScene => resultScene.drawings
         .filter(d => (d.id !== region._id || scene !== resultScene) && flagMatch(d.data))
         .map(result => [region, resultScene, result.data])
     ).flat();
@@ -515,14 +515,14 @@ class MultilevelTokens {
 
   _getNumericallyAdjacentLevelRegions(scene, levelRegion) {
     const levelNumber = parseInt(this._getRegionFlag(levelRegion, "levelNumber"));
-    return scene.data.drawings.filter(d => {
+    return scene.drawings.filter(d => {
       const otherNumber = parseInt(this._getRegionFlag(d.data, "levelNumber"));
       return otherNumber == levelNumber + 1 || otherNumber == levelNumber - 1;
     }).map(d => d.data);
   }
 
   _getFlaggedRegionsContainingPoint(scene, point, flags) {
-    return scene.data.drawings
+    return scene.drawings
         .filter(drawing => this._hasRegionFlag(drawing.data, flags) &&
                            this._isPointInRegion(point, drawing.data))
         .map(d => d.data);
@@ -540,7 +540,7 @@ class MultilevelTokens {
       {x: mapNote.x + epsilon, y: mapNote.y - epsilon},
       {x: mapNote.x + epsilon, y: mapNote.y + epsilon},
     ];
-    return scene.data.drawings
+    return scene.drawings
         .filter(drawing =>
             this._hasRegionFlag(drawing.data, "in") && this._hasRegionFlag(drawing.data, "activateViaMapNote") &&
             points.some(p => this._isPointInRegion(p, drawing.data)))
@@ -652,7 +652,7 @@ class MultilevelTokens {
             return;
           }
           const sourceToken = sourceScene.tokens.find(t => t.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_TOKEN])?.data;
-          const sourceRegion = sourceScene.data.drawings.find(d => d.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION])?.data;
+          const sourceRegion = sourceScene.drawings.find(d => d.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_SOURCE_REGION])?.data;
           if (sourceToken && sourceRegion) {
             this._updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
           }
@@ -665,7 +665,7 @@ class MultilevelTokens {
 
     replicatedTokens.forEach(([targetScene, targetToken]) => {
       const sourceToken = tokens.find(t => this._isReplicationForSourceToken(sourceScene, t, targetScene, targetToken));
-      const targetRegion = targetScene.data.drawings.find(d => d.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])?.data;
+      const targetRegion = targetScene.drawings.find(d => d.id === targetToken.flags[MLT.SCOPE][MLT.FLAG_TARGET_REGION])?.data;
       if (sourceToken && targetRegion) {
         this._updateReplicatedToken(requestBatch, sourceScene, sourceToken, sourceRegion, targetScene, targetToken, targetRegion);
       } else {
@@ -882,7 +882,7 @@ class MultilevelTokens {
     const movedMacroRegions = currentMacroRegions.flatMap(r =>
         this._hasRegionFlag(r, "macroMove") && previousMacroRegionIds.includes(r._id) ? [[r, MLT.MOVE]] : []);
     const leftMacroRegions = previousMacroRegionIds.flatMap(id => {
-        const r = scene.data.drawings.find(d => d.id === id)?.data;
+        const r = scene.drawings.find(d => d.id === id)?.data;
         return r && this._hasRegionFlag(r, "macroLeave") && !currentMacroRegions.some(s => s._id === id) ? [[r, MLT.LEAVE]] : [];
     });
 
@@ -911,7 +911,7 @@ class MultilevelTokens {
         {
           const token = scene.tokens.get(outerToken._id);
           const actor = token.actor;
-          const region = scene.data.drawings.get(outerRegion[0]._id);
+          const region = scene.drawings.get(outerRegion[0]._id);
           const event = outerRegion[1];
           const args = this._getMacroArgs(outerRegion[0]);
           try {
@@ -1371,7 +1371,7 @@ class MultilevelTokens {
         this._getInvalidReplicatedTokensForScene(scene)
             .forEach(token => requestBatch.deleteToken(scene, token._id));
 
-        scene.data.drawings
+        scene.drawings
             .filter(r => this._hasRegionFlag(r.data, "source"))
             .forEach(r => this._updateAllReplicatedTokensForSourceRegion(requestBatch, scene, r.data));
       });
@@ -1394,7 +1394,7 @@ class MultilevelTokens {
       // Workaround for issue where imported scene contains drawings whose author is an invalid user ID.
       // Can assume a GM took the import action and update to use their ID instead.
       this._queueAsync(requestBatch => {
-        scene.data.drawings.filter(d => !game.users.find(u => u.id === d.data.author)).forEach(d => {
+        scene.drawings.filter(d => !game.users.find(u => u.id === d.data.author)).forEach(d => {
           requestBatch.updateDrawing(scene, {
             _id: d.id || d._id,
             author: game.user.id,
