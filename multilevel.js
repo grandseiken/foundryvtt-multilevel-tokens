@@ -285,13 +285,24 @@ class MultilevelTokens {
            this._isReplicationForSourceRegion(scene, region, targetScene, targetToken);
   }
 
+  _getDrawingPoints(drawing) {
+    if (drawing.shape.points.length && drawing.shape.points[0].x !== undefined) {
+      return drawing.shape.points;
+    }
+    const r = [];
+    for (let i = 0; i < drawing.shape.points.length; i += 2) {
+      r.push([drawing.shape.points[i], drawing.shape.points[i + 1]]);
+    }
+    return r;
+  }
+
   _getDrawingBounds(drawing) {
     if (drawing.shape.type === CONST.DRAWING_TYPES.POLYGON) {
       let xMin = Number.MAX_VALUE;
       let xMax = Number.MIN_VALUE;
       let yMin = Number.MAX_VALUE;
       let yMax = Number.MIN_VALUE;
-      drawing.shape.points.forEach(p => {
+      this._getDrawingPoints(drawing).forEach(p => {
          const x = p[0] + drawing.x;
          const y = p[1] + drawing.y;
          xMin = Math.min(xMin, x);
@@ -372,19 +383,20 @@ class MultilevelTokens {
           4 * (dy * dy) / (shape.height * shape.height) <= 1;
     }
     if (shape.type === CONST.DRAWING_TYPES.POLYGON) {
+      const points = this._getDrawingPoints(region);
       const cx = point.x - region.x;
       const cy = point.y - region.y;
       let w = 0;
-      for (let i0 = 0; i0 < shape.points.length; ++i0) {
-        let i1 = i0 + 1 === shape.points.length ? 0 : i0 + 1;
-        if (shape.points[i0][1] <= cy && shape.points[i1][1] > cy &&
-            (shape.points[i1][0] - shape.points[i0][0]) * (cy - shape.points[i0][1]) -
-            (shape.points[i1][1] - shape.points[i0][1]) * (cx - shape.points[i0][0]) > 0) {
+      for (let i0 = 0; i0 < points.length; ++i0) {
+        let i1 = i0 + 1 === points.length ? 0 : i0 + 1;
+        if (points[i0][1] <= cy && points[i1][1] > cy &&
+            (points[i1][0] - points[i0][0]) * (cy - points[i0][1]) -
+            (points[i1][1] - points[i0][1]) * (cx - points[i0][0]) > 0) {
           ++w;
         }
-        if (shape.points[i0][1] > cy && shape.points[i1][1] <= cy &&
-            (shape.points[i1][0] - shape.points[i0][0]) * (cy - shape.points[i0][1]) -
-            (shape.points[i1][1] - shape.points[i0][1]) * (cx - shape.points[i0][0]) < 0) {
+        if (points[i0][1] > cy && points[i1][1] <= cy &&
+            (points[i1][0] - points[i0][0]) * (cy - points[i0][1]) -
+            (points[i1][1] - points[i0][1]) * (cx - points[i0][0]) < 0) {
           --w;
         }
       }
@@ -993,8 +1005,6 @@ class MultilevelTokens {
       const animate = this._hasRegionFlag(inRegion, "animate") || this._hasRegionFlag(outRegion, "animate");
       destinations.push([duplicate(token), outScene, animate, position]);
     }
-    // TODO: wait for animation to complete before teleporting, if possible? This would avoid visual inconsistencies
-    // where a token teleports before completing the move animation into the region.
     this._queueAsync(requestBatch => {
       for (const [token, outScene, animate, position] of destinations) {
         if (outScene === scene) {
@@ -1530,7 +1540,14 @@ class MultilevelTokens {
       if (MLT.REPLICATED_UPDATE in options) {
         this._setLastTeleport(token.parent, token);
       } else {
-        this._doTeleport(token.parent, token) || this._doLevelTeleport(token.parent, token);
+        const canvasToken = canvas.tokens.placeables.find(t => t.id === token._id);
+        if (canvasToken && canvasToken._animation) {
+          canvasToken._animation.then(_ => {
+            this._doTeleport(token.parent, token) || this._doLevelTeleport(token.parent, token);
+          });
+        } else {
+          this._doTeleport(token.parent, token) || this._doLevelTeleport(token.parent, token);
+        }
       }
     }
   }
