@@ -26,6 +26,7 @@
   "MLT.FieldCloneId": "クローン識別子",
   "MLT.SectionTargetRegionNotes": "この対象領域で作成されたクローントークンの設定を行います。",
   "MLT.FieldClonedTokenTintColor": "複製されたトークンの色合い",
+  "MLT.FieldClonedTokenOpacity": "Opacity for cloned tokens",
   "MLT.FieldClonedTokenScale": "複製されたトークンの縮尺係数",
   "MLT.FieldMirrorHorizontally": "横方向に反転",
   "MLT.FieldMirrorVertically": "縦方向に反転",

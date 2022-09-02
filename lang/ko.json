@@ -26,6 +26,7 @@
   "MLT.FieldCloneId": "복제 수정자",
   "MLT.SectionTargetRegionNotes": "대상 영역에 생성된 복제 토큰에 대한 설정",
   "MLT.FieldClonedTokenTintColor": "복제된 토큰의 색조",
+  "MLT.FieldClonedTokenOpacity": "Opacity for cloned tokens",
   "MLT.FieldClonedTokenScale": "복제된 토큰의 크기 조정 인수",
   "MLT.FieldMirrorHorizontally": "수평적 대칭",
   "MLT.FieldMirrorVertically": "수직적 대칭",

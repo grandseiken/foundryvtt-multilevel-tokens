@@ -26,6 +26,7 @@
   "MLT.FieldCloneId": "Klonkennung",
   "MLT.SectionTargetRegionNotes": "Eintellung für geklonte Figuren erstellt durch diese Ziel-Region.",
   "MLT.FieldClonedTokenTintColor": "Farbton für geklonte Figuren",
+  "MLT.FieldClonedTokenOpacity": "Opacity for cloned tokens",
   "MLT.FieldClonedTokenScale": "Skalierungsfaktor für geklonte Figur",
   "MLT.FieldMirrorHorizontally": "Horizontal spiegeln",
   "MLT.FieldMirrorVertically": "Vertikal spiegeln",

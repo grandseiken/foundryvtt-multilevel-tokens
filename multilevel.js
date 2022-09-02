@@ -450,13 +450,15 @@ class MultilevelTokens {
     };
     const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
-    const tintRgb = token.tint ? hexToRGB(colorStringToHex(token.tint)) : [1., 1., 1.];
-    const multRgb = hexToRGB(colorStringToHex(
-        this._getRegionFlag(targetRegion, "tintColor") || MLT.DEFAULT_TINT_COLOR));
+    const tintRgb = token.tint ? Color.from(token.tint).rgb : [1., 1., 1.];
+    const multRgb = Color.from(
+        this._getRegionFlag(targetRegion, "tintColor") || MLT.DEFAULT_TINT_COLOR).rgb;
     for (let i = 0; i < multRgb.length; ++i) {
       tintRgb[i] *= multRgb[i];
     }
     const cloneModuleFlags = game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_MODULE_FLAGS) || false;
+    const opacity = this._getRegionFlag(targetRegion, "opacity") === 0. ? 0. :
+        this._getRegionFlag(targetRegion, "opacity") || 1.;
 
     const data = duplicate(token);
     delete data._id;
@@ -484,7 +486,8 @@ class MultilevelTokens {
     data.x = targetPosition.x;
     data.y = targetPosition.y;
     data.rotation += targetRegion.rotation - sourceRegion.rotation;
-    data.tint = "#" + rgbToHex(tintRgb).toString(16);
+    data.tint = Color.fromRGB(tintRgb).toString(16);
+    data.alpha = token.alpha * opacity;
     if (!data.flags || !cloneModuleFlags) {
       data.flags = {};
     }
@@ -1154,6 +1157,16 @@ class MultilevelTokens {
     const contents = `
     <div class="tab" data-tab="multilevel-tokens">
       <p class="notes">${game.i18n.localize("MLT.TabNotes")}</p>
+      <div class="form-group">
+        <label for="flags.multilevel-tokens.disabled">${game.i18n.localize("MLT.FieldDisableRegion")}</label>
+        <input type="checkbox" name="flags.multilevel-tokens.disabled" data-dtype="Boolean"/>
+        <p class="notes">${game.i18n.localize("MLT.FieldDisableRegionNotes")}</p>
+      </div>
+      <div class="form-group">
+        <label for="flags.multilevel-tokens.local">${game.i18n.localize("MLT.FieldSceneLocal")}</label>
+        <input type="checkbox" name="flags.multilevel-tokens.local" data-dtype="Boolean"/>
+        <p class="notes">${game.i18n.localize("MLT.FieldSceneLocalNotes")}</p>
+      </div>
       <h3 class="form-header">
         <i class="fas fa-random"/></i> ${game.i18n.localize("MLT.SectionTeleports")}
       </h3>
@@ -1170,26 +1183,22 @@ class MultilevelTokens {
         <label for="flags.multilevel-tokens.teleportId">${game.i18n.localize("MLT.FieldTeleportId")}</label>
         <input type="text" name="flags.multilevel-tokens.teleportId" data-dtype="String"/>
       </div>
-      <hr>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.snapToGrid">${game.i18n.localize("MLT.FieldSnapToGrid")}</label>
-        <input type="checkbox" name="flags.multilevel-tokens.snapToGrid" data-dtype="Boolean"/>
-        <p class="notes">${game.i18n.localize("MLT.FieldSnapToGridNotes")}</p>
-      </div>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.animate">${game.i18n.localize("MLT.FieldAnimateMovement")}</label>
-        <input type="checkbox" name="flags.multilevel-tokens.animate" data-dtype="Boolean"/>
-      </div>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.activateViaMapNote">${game.i18n.localize("MLT.FieldActivateViaMapNote")}</label>
-        <input type="checkbox" name="flags.multilevel-tokens.activateViaMapNote" data-dtype="Boolean"/>
-        <p class="notes">${game.i18n.localize("MLT.FieldActivateViaMapNoteNotes")}</p>
-      </div>
-      <hr>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.local">${game.i18n.localize("MLT.FieldSceneLocal")}</label>
-        <input type="checkbox" name="flags.multilevel-tokens.local" data-dtype="Boolean"/>
-        <p class="notes">${game.i18n.localize("MLT.FieldSceneLocalNotes")}</p>
+      <div id="mltTeleportSection">
+        <hr>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.snapToGrid">${game.i18n.localize("MLT.FieldSnapToGrid")}</label>
+          <input type="checkbox" name="flags.multilevel-tokens.snapToGrid" data-dtype="Boolean"/>
+          <p class="notes">${game.i18n.localize("MLT.FieldSnapToGridNotes")}</p>
+        </div>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.animate">${game.i18n.localize("MLT.FieldAnimateMovement")}</label>
+          <input type="checkbox" name="flags.multilevel-tokens.animate" data-dtype="Boolean"/>
+        </div>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.activateViaMapNote">${game.i18n.localize("MLT.FieldActivateViaMapNote")}</label>
+          <input type="checkbox" name="flags.multilevel-tokens.activateViaMapNote" data-dtype="Boolean"/>
+          <p class="notes">${game.i18n.localize("MLT.FieldActivateViaMapNoteNotes")}</p>
+        </div>
       </div>
       <h3 class="form-header">
         <i class="far fa-clone"/></i> ${game.i18n.localize("MLT.SectionTokenCloning")}
@@ -1207,26 +1216,35 @@ class MultilevelTokens {
         <label for="flags.multilevel-tokens.cloneId">${game.i18n.localize("MLT.FieldCloneId")}</label>
         <input type="text" name="flags.multilevel-tokens.cloneId" data-dtype="String"/>
       </div>
-      <hr>
-      <p class="notes">${game.i18n.localize("MLT.SectionTargetRegionNotes")}</p>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.tintColor">${game.i18n.localize("MLT.FieldClonedTokenTintColor")}</label>
-        <div class="form-fields">
-          <input class="color" type="text" name="flags.multilevel-tokens.tintColor">
-          <input type="color" name="flags.multilevel-tokens.tintColorPicker" data-edit="flags.multilevel-tokens.tintColor">
+      <div id="mltTargetSection">
+        <hr>
+        <p class="notes">${game.i18n.localize("MLT.SectionTargetRegionNotes")}</p>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.tintColor">${game.i18n.localize("MLT.FieldClonedTokenTintColor")}</label>
+          <div class="form-fields">
+            <input class="color" type="text" name="flags.multilevel-tokens.tintColor">
+            <input type="color" name="flags.multilevel-tokens.tintColorPicker" data-edit="flags.multilevel-tokens.tintColor">
+          </div>
         </div>
-      </div>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.scale">${game.i18n.localize("MLT.FieldClonedTokenScale")}</label>
-        <input type="text" name="flags.multilevel-tokens.scale" value="1" data-dtype="Number"/>
-      </div>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.flipX">${game.i18n.localize("MLT.FieldMirrorHorizontally")}</label>
-        <input type="checkbox" name="flags.multilevel-tokens.flipX" data-dtype="Boolean"/>
-      </div>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.flipY">${game.i18n.localize("MLT.FieldMirrorVertically")}</label>
-        <input type="checkbox" name="flags.multilevel-tokens.flipY" data-dtype="Boolean"/>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.opacity">${game.i18n.localize("MLT.FieldClonedTokenOpacity")}</label>
+          <div class="form-fields">
+            <input type="range" name="flags.multilevel-tokens.opacity" value="1" min="0" max="1" step="0.1">
+            <span class="range-value">1</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.scale">${game.i18n.localize("MLT.FieldClonedTokenScale")}</label>
+          <input type="text" name="flags.multilevel-tokens.scale" value="1" data-dtype="Number"/>
+        </div>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.flipX">${game.i18n.localize("MLT.FieldMirrorHorizontally")}</label>
+          <input type="checkbox" name="flags.multilevel-tokens.flipX" data-dtype="Boolean"/>
+        </div>
+        <div class="form-group">
+          <label for="flags.multilevel-tokens.flipY">${game.i18n.localize("MLT.FieldMirrorVertically")}</label>
+          <input type="checkbox" name="flags.multilevel-tokens.flipY" data-dtype="Boolean"/>
+        </div>
       </div>
       <h3 class="form-header">
         <i class="fas fa-magic"/></i> ${game.i18n.localize("MLT.SectionMacroTriggers")}
@@ -1266,18 +1284,13 @@ class MultilevelTokens {
         <label for="flags.multilevel-tokens.levelNumber">${game.i18n.localize("MLT.FieldLevelNumber")}</label>
         <input type="text" name="flags.multilevel-tokens.levelNumber" value="0" data-dtype="Number"/>
       </div>
-      <hr>
-      <div class="form-group">
-        <label for="flags.multilevel-tokens.disabled">${game.i18n.localize("MLT.FieldDisableRegion")}</label>
-        <input type="checkbox" name="flags.multilevel-tokens.disabled" data-dtype="Boolean"/>
-        <p class="notes">${game.i18n.localize("MLT.FieldDisableRegionNotes")}</p>
-      </div>
     </div>`;
 
     html.find(".tabs .item").last().after(tab);
     html.find(".tab").last().after(contents);
     const mltTab = html.find(".tab").last();
     const input = (name) => mltTab.find(`input[name="flags.multilevel-tokens.${name}"]`);
+    const group = (name) => mltTab.find(`#${name}`);
 
     input("in").prop("checked", flags.in);
     input("out").prop("checked", flags.out);
@@ -1290,6 +1303,7 @@ class MultilevelTokens {
     input("cloneId").prop("value", flags.cloneId);
     input("tintColor").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
     input("tintColorPicker").prop("value", flags.tintColor || MLT.DEFAULT_TINT_COLOR);
+    input("opacity").prop("value", flags.opacity === 0. ? 0. : flags.opacity || 1.);
     input("scale").prop("value", flags.scale || 1);
     input("flipX").prop("checked", flags.flipX);
     input("flipY").prop("checked", flags.flipY);
@@ -1305,6 +1319,13 @@ class MultilevelTokens {
 
     const isChecked = name => input(name).is(":checked");
     const enable = (name, enabled) => input(name).prop("disabled", !enabled);
+    const show = (name, visible) => {
+      if (visible) {
+        group(name).show();
+      } else {
+        group(name).hide();
+      }
+    };
     const onChange = () => {
       const isIn = isChecked("in");
       const isOut = isChecked("out");
@@ -1314,6 +1335,8 @@ class MultilevelTokens {
       const isMacro = isChecked("macroEnter") || isChecked("macroLeave") || isChecked("macroMove");
       const isLevel = isChecked("level");
 
+      show("mltTeleportSection", isTeleport);
+      show("mltTargetSection", isTarget);
       enable("teleportId", isTeleport);
       enable("animate", isTeleport);
       enable("activateViaMapNote", isIn);
@@ -1321,6 +1344,7 @@ class MultilevelTokens {
       enable("cloneId", isSource || isTarget);
       enable("tintColor", isTarget);
       enable("tintColorPicker", isTarget);
+      enable("opacity", isTarget);
       enable("scale", isTarget);
       enable("flipX", isTarget);
       enable("flipY", isTarget);
@@ -1352,6 +1376,13 @@ class MultilevelTokens {
 
     if ("scale" in flags && (isNaN(flags.scale) || flags.scale <= 0)) {
       flags.scale = 1;
+    }
+    if ("opacity" in flags) {
+      if (isNaN(flags.opacity)) {
+        flags.opacity = 1;
+      } else {
+        flags.opacity = Math.max(0., Math.min(1., flags.opacity));
+      }
     }
     if (flags.in || flags.out || flags.source || flags.target ||
         flags.macroEnter || flags.macroLeave || flags.macroMove || flags.level) {

@@ -22,6 +22,7 @@
   "MLT.FieldCloneId": "Identifiant de Clonage",
   "MLT.SectionTargetRegionNotes": "Paramètres pour les jetons clonés créés par cette région Cible.",
   "MLT.FieldClonedTokenTintColor": "Nuance de couleur pour les jetons clonés",
+  "MLT.FieldClonedTokenOpacity": "Opacity for cloned tokens",
   "MLT.FieldMirrorHorizontally": "Inverser horizontalement",
   "MLT.FieldMirrorVertically": "Inverser verticalement",
   "MLT.SectionMacroTriggers": "Déclencheurs de macros",
