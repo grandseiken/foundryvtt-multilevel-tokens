@@ -324,26 +324,26 @@ class MultilevelTokens {
   _getSceneScaleFactor(scene) {
     const hexScale = 2 / Math.sqrt(3);
     return {
-      x: scene.gridType === CONST.GRID_TYPES.HEXODDR ||
-         scene.gridType === CONST.GRID_TYPES.HEXEVENR ? hexScale : 1,
-      y: scene.gridType === CONST.GRID_TYPES.HEXODDQ ||
-         scene.gridType === CONST.GRID_TYPES.HEXEVENQ ? hexScale : 1,
+      x: scene.grid.type === CONST.GRID_TYPES.HEXODDR ||
+         scene.grid.type === CONST.GRID_TYPES.HEXEVENR ? hexScale : 1,
+      y: scene.grid.type === CONST.GRID_TYPES.HEXODDQ ||
+         scene.grid.type === CONST.GRID_TYPES.HEXEVENQ ? hexScale : 1,
     };
   }
 
   _getTokenCentre(scene, token) {
     const s = this._getSceneScaleFactor(scene);
     return {
-      x: token.x + token.width * s.x * scene.grid / 2,
-      y: token.y + token.height * s.y * scene.grid / 2
+      x: token.x + token.width * s.x * scene.grid.size / 2,
+      y: token.y + token.height * s.y * scene.grid.size / 2
     };
   }
 
   _getTokenPositionFromCentre(scene, token, centre) {
     const s = this._getSceneScaleFactor(scene);
     return {
-      x: centre.x - token.width * s.x * scene.grid / 2,
-      y: centre.y - token.height * s.y * scene.grid / 2
+      x: centre.x - token.width * s.x * scene.grid.size / 2,
+      y: centre.y - token.height * s.y * scene.grid.size / 2
     }
   }
 
@@ -398,8 +398,8 @@ class MultilevelTokens {
   }
 
   _isPointInToken(scene, point, containingToken) {
-    return containingToken.x <= point.x && point.x <= containingToken.x + (containingToken.width * scene.grid) &&
-           containingToken.y <= point.y && point.y <= containingToken.y + (containingToken.height * scene.grid);
+    return containingToken.x <= point.x && point.x <= containingToken.x + (containingToken.width * scene.grid.size) &&
+           containingToken.y <= point.y && point.y <= containingToken.y + (containingToken.height * scene.grid.size);
   }
 
   _mapPosition(point, sourceRegion, targetRegion) {
@@ -444,9 +444,9 @@ class MultilevelTokens {
     const targetBounds = this._getDrawingBounds(targetRegion);
     const scale = {
       x: Math.abs(extraScale * (sourceScale.x / targetScale.x) *
-            (targetBounds.width / targetScene.grid) / (sourceBounds.width / sourceScene.grid)),
+            (targetBounds.width / targetScene.grid.size) / (sourceBounds.width / sourceScene.grid.size)),
       y: Math.abs(extraScale * (sourceScale.y / targetScale.y) *
-            (targetBounds.height / targetScene.grid) / (sourceBounds.height / sourceScene.grid)),
+            (targetBounds.height / targetScene.grid.size) / (sourceBounds.height / sourceScene.grid.size)),
     };
     const targetCentre = this._mapPosition(this._getTokenCentre(sourceScene, token), sourceRegion, targetRegion);
 
@@ -973,14 +973,14 @@ class MultilevelTokens {
       if (this._hasRegionFlag(outRegion, "snapToGrid")) {
         const options = {
           dimensions: Canvas.getDimensions(outScene),
-          columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.gridType),
-          even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.gridType)
+          columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type),
+          even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type)
         };
-        if (outScene.gridType === CONST.GRID_TYPES.SQUARE) {
+        if (outScene.grid.type === CONST.GRID_TYPES.SQUARE) {
           const gridSize = options.dimensions.size;
           position.x = gridSize * Math.round(position.x / gridSize);
           position.y = gridSize * Math.round(position.y / gridSize);
-        } else if (outScene.gridType === CONST.GRID_TYPES.GRIDLESS) {
+        } else if (outScene.grid.type === CONST.GRID_TYPES.GRIDLESS) {
           position.x = Math.round(position.x);
           position.y = Math.round(position.y);
         } else {
