@@ -3,6 +3,8 @@
   "MLT.SettingAutoSyncTargetsHint": "Si coché, sélectionner ou déselectionner un jeton sélectionnera/déselectionnera aussi ses clones (ou originaux).",
   "MLT.SettingAutoSyncChatBubbles": "Synchroniser automatiquement les bulles de discussion",
   "MLT.SettingAutoSyncChatBubblesHint": "Si coché, les bulles de discussion pour un jeton seront aussi visible sur ses clones (ou originaux).",
+  "MLT.SettingCloneActorLink": "Link actors of cloned tokens",
+  "MLT.SettingCloneActorLinkHint": "If enabled, cloned tokens link to the actor of the original token. Otherwise, cloned tokens will be 'dummy' tokens with no actor.",
   "MLT.SettingCloneModuleFlags": "Les autres modules peuvent changer les flags d'un jeton",
   "MLT.SettingCloneModuleFlagsHint": "Les modules peuvent définir des flags custom sur les jetons pour leur propre usage. Si coché, les jetons clonés hériteront de ces flags depuis l'original. Puisque l'objectif de ces flags est dépendant du module en question, je ne peux pas vous dire ce que cette option fera, mais si les jetons clonés ont de mauvais interactions, vous pouvez essayer de changer cette option.",
   "MLT.TabTitle": "Multilevel",

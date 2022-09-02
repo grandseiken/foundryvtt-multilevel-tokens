@@ -3,6 +3,8 @@
   "MLT.SettingAutoSyncTargetsHint": "If checked, targeting or detargeting a token will also target or detarget its clones (or originals).",
   "MLT.SettingAutoSyncChatBubbles": "Auto-sync chat bubbles",
   "MLT.SettingAutoSyncChatBubblesHint": "If checked, chat bubbles for a token will also be shown on its clones (or originals).",
+  "MLT.SettingCloneActorLink": "Link actors of cloned tokens",
+  "MLT.SettingCloneActorLinkHint": "If enabled, cloned tokens link to the actor of the original token. Otherwise, cloned tokens will be 'dummy' tokens with no actor.",
   "MLT.SettingCloneModuleFlags": "Clone token flags set by other modules",
   "MLT.SettingCloneModuleFlagsHint": "Modules can set custom flags on tokens for their own use. If checked, cloned tokens will inherit such flags from the original. Since the purpose of these flags depends on the module in question, I can't tell you what this option will do, but if cloned tokens are interacting poorly with some other module, you can try changing it.",
   "MLT.TabTitle": "Multilevel",

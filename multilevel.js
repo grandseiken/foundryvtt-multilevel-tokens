@@ -5,6 +5,7 @@ const MLT = {
   MOVE: "move",
   SETTING_AUTO_TARGET: "autotarget",
   SETTING_AUTO_CHAT_BUBBLE: "autochatbubble",
+  SETTING_CLONE_ACTOR_LINK: "cloneactorlink",
   SETTING_CLONE_MODULE_FLAGS: "clonemoduleflags",
   DEFAULT_TINT_COLOR: "#808080",
   FLAG_SOURCE_SCENE: "sscene",
@@ -97,6 +98,14 @@ class MultilevelTokens {
     game.settings.register(MLT.SCOPE, MLT.SETTING_AUTO_CHAT_BUBBLE, {
       name: game.i18n.localize("MLT.SettingAutoSyncChatBubbles"),
       hint: game.i18n.localize("MLT.SettingAutoSyncChatBubblesHint"),
+      scope: "world",
+      config: true,
+      type: Boolean,
+      default: true
+    });
+    game.settings.register(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK, {
+      name: game.i18n.localize("MLT.SettingCloneActorLink"),
+      hint: game.i18n.localize("MLT.SettingCloneActorLinkHint"),
       scope: "world",
       config: true,
       type: Boolean,
@@ -439,7 +448,7 @@ class MultilevelTokens {
 
   _duplicateTokenData(token) {
     const data = duplicate(token);
-    if (token.actor && token.actor && token.actor.effects) {
+    if (token.actor && !token.actorLink && !game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK) && token.actor.effects) {
       data.actorData = {"effects": []};
       for (var i = 0; i < token.actor.effects.contents.length; ++i) {
         data.actorData.effects.push({"icon": token.actor.effects.contents[i].icon});
@@ -474,8 +483,10 @@ class MultilevelTokens {
 
     const data = duplicate(token);
     delete data._id;
-    data.actorId = "";
-    data.actorLink = false;
+    if (!game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK)) {
+      data.actorId = "";
+      data.actorLink = false;
+    }
     data.vision = false;
     data.width *= scale.x;
     data.height *= scale.y;
@@ -484,7 +495,7 @@ class MultilevelTokens {
     if (scale.y < scale.x) {
       data.scale = data.scale ? data.scale * scale.y / scale.x : scale.y / scale.x;
     }
-    if (data.actorData) {
+    if (data.actorData && !data.actorLink && !game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK)) {
       if (data.actorData.effects) {
         data.effects = [];
         for (var i = 0; i < data.actorData.effects.length; ++i) {
@@ -1505,6 +1516,12 @@ class MultilevelTokens {
       const t = this._duplicateTokenData(token);
       this._queueAsync(requestBatch => this._replicateTokenToAllRegions(requestBatch, token.parent, t));
       this._setLastTeleport(token.parent, token);
+    } else if (!token.actorLink && game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK)) {
+      // Manually hack-link the actors.
+      const sourceToken = this._getSourceTokenForReplicatedToken(token.parent, token);
+      token.actorData = sourceToken.actorData;
+      token._actor = sourceToken._actor;
+      token.actor = sourceToken.actor;
     }
   }
 
@@ -1527,6 +1544,17 @@ class MultilevelTokens {
   }
 
   _onUpdateToken(token, update, options, userId) {
+    if (game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK)) {
+      game.scenes.viewed.tokens.forEach(t => {
+        if (this._isReplicatedToken(t) && t.rendered &&
+            this._isReplicationForSourceToken(token.parent, token, game.scenes.viewed, t)) {
+          // Make sure clones with linked actors also update their effects.
+          // Should be able to do this without a timeout somewhere in the proper place, but data isn't
+          // actually propagated yet here and can't figure out but hack for now.
+          setTimeout(() => t.object.drawEffects(), 1000);
+        }
+      });
+    }
     if (!game.user.isGM) {
       this._overrideNotesDisplayForToken(token.parent, token);
     }
@@ -1554,16 +1582,18 @@ class MultilevelTokens {
 
   _onUpdateActiveEffect(effect, options, userId) {
     const actor = effect.parent;
-    this._queueAsync(requestBatch => {
-      game.scenes.forEach(scene => {
-        scene.tokens.forEach(token => {
-          if (token.actor && token.actor == actor) {
-            const t = this._duplicateTokenData(token);
-            this._updateAllReplicatedTokensForToken(requestBatch, scene, t, ["effects"]);
-          }
+    if (!game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK)) {
+      this._queueAsync(requestBatch => {
+        game.scenes.forEach(scene => {
+          scene.tokens.forEach(token => {
+            if (token.actor && token.actor == actor) {
+              const t = this._duplicateTokenData(token);
+              this._updateAllReplicatedTokensForToken(requestBatch, scene, t, ["effects"]);
+            }
+          });
         });
       });
-    });
+    }
   }
 
   _onControlToken(token, control) {

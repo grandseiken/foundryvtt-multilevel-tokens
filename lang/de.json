@@ -3,6 +3,8 @@
   "MLT.SettingAutoSyncTargetsHint": "Wenn angehakt, anvisieren oder abwählen einer Figur visiert ebenfalls an oder wählt den Klon (das Orginal) ab.",
   "MLT.SettingAutoSyncChatBubbles": "Auto-sync Sprechblasen",
   "MLT.SettingAutoSyncChatBubblesHint": "Wenn angehakt, Sprechblasen einer Figur werden ebenfalls auf dem Klon (oder Orginal) angezeigt.",
+  "MLT.SettingCloneActorLink": "Link actors of cloned tokens",
+  "MLT.SettingCloneActorLinkHint": "If enabled, cloned tokens link to the actor of the original token. Otherwise, cloned tokens will be 'dummy' tokens with no actor.",
   "MLT.SettingCloneModuleFlags": "Klone Kennzeichnung (flags) die durch andere Module gesetzt werden.",
   "MLT.SettingCloneModuleFlagsHint": "Module können benutzerdefinierte Kennzeichnungen (flags) für die eigene Verwendung setzen. Wenn angehakt, erben die geklonten Figuren solche Kennzeichnungen von ihren Orginalen. Da der Hintergrund dieser Kennzeichnungen von dem entsprechenden Modul abhängt, kann ich dir nicht sagen, was diese Option für Auswirkungen hat, aber wenn die geklonten Figuren sich seltsam mit anderen Modulen verhalten, kannst du versuchen das hier zu ändern.",
   "MLT.TabTitle": "Multilevel",

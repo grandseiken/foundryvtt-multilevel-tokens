@@ -3,6 +3,8 @@
   "MLT.SettingAutoSyncTargetsHint": "체크할 경우 토큰을 대상으로 지정하거나 지정 해제할 경우 클론도 똑같이 대상 지정/해제 된다. 반대의 경우도 동일.",
   "MLT.SettingAutoSyncChatBubbles": "말풍선 자동 동기화",
   "MLT.SettingAutoSyncChatBubblesHint": "체크할 경우 토큰의 말풍선이 클론에게도 표시된다. 반대의 경우도 동일.",
+  "MLT.SettingCloneActorLink": "Link actors of cloned tokens",
+  "MLT.SettingCloneActorLinkHint": "If enabled, cloned tokens link to the actor of the original token. Otherwise, cloned tokens will be 'dummy' tokens with no actor.",
   "MLT.SettingCloneModuleFlags": "타 모듈에서 설정한 토큰 플래그 복제",
   "MLT.SettingCloneModuleFlagsHint": "모듈들은 자체 사용을 위해 토큰에 사용자 지정 플래그를 설정할 수 있다. 이 옵션을 선택시 복제된 토큰이 원본에서 이러한 플래그를 상속받게 된다. 이 플래그의 목적은 해당 모듈에 달려있기 때문에 이 옵션이 어떤 역할을 할 거라곤 말 못하지만 복제된 토큰이 일부 다른 모듈과 제대로 상호작용을 하지 못할 경우 변경을 시도해볼 수는 있다.",
   "MLT.TabTitle": "멀티 레벨",

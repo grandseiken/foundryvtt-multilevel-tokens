@@ -6,6 +6,8 @@
   "MLT.SettingAutoSyncTargetsHint": "Si marca esta opción, seleccionar o deseleccionar un icono también seleccionará/deseleccionará sus clones (u originales)",
   "MLT.SettingAutoSyncChatBubbles": "Sincronizar automáticamente burbujas de chat",
   "MLT.SettingAutoSyncChatBubblesHint": "Si marca esta opción, las burbujas de chat de un icono también serán visibles en sus clones (u originales)",
+  "MLT.SettingCloneActorLink": "Link actors of cloned tokens",
+  "MLT.SettingCloneActorLinkHint": "If enabled, cloned tokens link to the actor of the original token. Otherwise, cloned tokens will be 'dummy' tokens with no actor.",
   "MLT.SettingCloneModuleFlags": "Clonar banderas generadas por otros módulos",
   "MLT.SettingCloneModuleFlagsHint": "Hay módulos que ponen banderas personalizadas a los iconos. Si marca esta opción, los iconos clonados heredarán las banderas del original. Teniendo en cuenta que las banderas dependerán del módulo en cuestión, no se puede preveer qué hará esta opción, pero si los iconos clonados dan errores al interactuar con otros módulos, mejor que deshabilite esta opción",
   "MLT.TabTitle": "Multinivel",

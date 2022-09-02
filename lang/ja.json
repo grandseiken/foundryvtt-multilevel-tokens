@@ -3,6 +3,8 @@
   "MLT.SettingAutoSyncTargetsHint": "プレイヤーがターゲットを変更すると、そのクローン（またはオリジナル）も同様にターゲットを変更します。",
   "MLT.SettingAutoSyncChatBubbles": "吹き出しを同期する",
   "MLT.SettingAutoSyncChatBubblesHint": "トークンの吹き出しは、そのクローン（またはオリジナル）にも表示されます。",
+  "MLT.SettingCloneActorLink": "Link actors of cloned tokens",
+  "MLT.SettingCloneActorLinkHint": "If enabled, cloned tokens link to the actor of the original token. Otherwise, cloned tokens will be 'dummy' tokens with no actor.",
   "MLT.SettingCloneModuleFlags": "ほかのモジュールで設定されたフラグを引き継ぐ",
   "MLT.SettingCloneModuleFlagsHint": "モジュールは、トークンにカスタムフラグを設定することがあります。このオプションを有効にすると、複製されたトークンは、オリジナルのフラグを継承するようになります。これがどんな影響を及ぼすかは、そのフラグを設定したモジュール次第ですが、そうしたモジュールとの互換性に問題がある場合は変更してみるといいでしょう。",
   "MLT.TabTitle": "マルチレベル",
