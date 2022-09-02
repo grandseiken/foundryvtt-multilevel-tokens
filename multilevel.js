@@ -774,7 +774,7 @@ class MultilevelTokens {
       }
       if (data.updateInstant.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Token.embeddedName, data.updateInstant,
-                                                                   Object.assign({diff: false, animate: false}, options)));
+                                                                   Object.assign({diff: false, animation: {duration: 1. / (1024 * 1024)}}, options)));
       }
       if (data.updateTile.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Tile.embeddedName, data.updateTile,
@@ -975,7 +975,7 @@ class MultilevelTokens {
           this._mapPosition(this._getTokenCentre(scene, token), inRegion, outRegion));
       if (this._hasRegionFlag(outRegion, "snapToGrid")) {
         const options = {
-          dimensions: Canvas.getDimensions(outScene),
+          dimensions: outScene.getDimensions(),
           columns: [CONST.GRID_TYPES.HEXODDQ, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type),
           even: [CONST.GRID_TYPES.HEXEVENR, CONST.GRID_TYPES.HEXEVENQ].includes(outScene.grid.type)
         };
@@ -1517,21 +1517,6 @@ class MultilevelTokens {
   }
 
   _onUpdateToken(token, update, options, userId) {
-    if (MLT.REPLICATED_UPDATE in options && "animate" in options && !options.animate &&
-        ('x' in update || 'y' in update)) {
-      // Workaround for issues with a non-animated position update on a token that is already animating.
-      const canvasToken = canvas.tokens.placeables.find(t => t.id === token._id);
-      if (canvasToken) {
-        canvasToken._movement = null;
-        canvasToken.stopAnimation();
-        canvasToken._onUpdate({x: token.x, y: token.y}, {animate: false});
-        canvas.triggerPendingOperations();
-      }
-      // Workaround for vision bug on 0.7.4.
-      if (canvasToken && canvasToken.updateSource) {
-        canvasToken.updateSource();
-      }
-    }
     if (!game.user.isGM) {
       this._overrideNotesDisplayForToken(token.parent, token);
     }
