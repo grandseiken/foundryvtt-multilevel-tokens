@@ -139,12 +139,19 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 * As mentioned earlier, the module needs a Gamemaster logged in to function properly, since it works by tracking changes on the GM's client and issuing commands with GM permissions in the background to manipulate tokens. If cloned tokens become out of sync because of this, you can use the snippet `game.multilevel.refreshAll()` (e.g. from a script macro) to wipe and recreate all cloned tokens. The GM can also log out and back in, which have the same effect.
 * The above point means performance impact should be low, because most of the complicated logic runs only on the GM's client. Player clients only have to deal with the updates that occur as a result.
 * The module will detect if more than one GM user is logged in, and only run on one of their clients. However, it can't currently detect if a _single_ GM user is logged in via multiple browser sessions, and problems may arise in that case due to the logic executing multiple times.
-* Note that, by necessity, cloned tokens are not associated with any actor, and this can sometimes cause compatibility issues with other macros or modules. Foundry allows a token to have no actor, but, as this is a somewhat unusual case, it's often not accounted for. Most commonly, this can result in the macro or module throwing an error like `TypeError: Cannot read property 'data' of null`.
+* If "link actors of cloned tokens" module setting is disabled, cloned tokens are not associated with any actor, and this can sometimes cause compatibility issues with other macros or modules. Foundry allows a token to have no actor, but, as this is a somewhat unusual case, it's often not accounted for. Most commonly, this can result in the macro or module throwing an error like `TypeError: Cannot read property 'data' of null`.
 * Many Foundry modules (including Multilevel Tokens itself) use _module-specific flags_ as a way to store additonal persistent custom data on tokens for their own purposes. It's not possible to predict whether or not it makes sense for _cloned_ tokens to inherit the custom flags set by another module, as the meaning of those flags depends on the module in question. By default, flags set by other modules will be copied to cloned tokens, but you can try disabling this in the **Module Settings** if you experience compatbility issues.
 * If something still isn't working you can file an issue here or reach me at `grand#5298` on the discord.
 
 # Version history
 
+* **1.6.0**:
+  * Compatibility with Foundry version 10.
+  * Slightly reorganised the UI.
+  * Support for freehand drawings.
+  * Clone target regions can now specify an opacity value to be applied to cloned tokens.
+  * When a token moves into a teleport region, the teleport now triggers only once the movement animation (if any) has completed, avoiding visual glitches.
+  * Added a new module setting "Link actors of cloned tokens" (on by default). When enabled, cloned tokens share actor data with the original token. Clones of tokens with the "Link actor data" option disabled (i.e. NPC tokens where each token has its own data) share the original token's copy of the actor data. This should avoid incompatibilities with other modules that don't handle the case where a token does not have a valid actor. In case it causes some other problem, the previous behaviour can be restored by disabling the setting.
 * **1.5.4**:
   * Fix in handling of drawings in scene import.
   * Only show temporary active effects on cloned tokens.
