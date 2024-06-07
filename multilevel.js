@@ -15,8 +15,8 @@ const MLT = {
   REPLICATED_UPDATE: "mlt_bypass",
   LOG_PREFIX: "Multilevel Tokens | ",
   TOKEN_STAIRS: "@stairs",
-  SUPPORTED_TYPES: [CONST.DRAWING_TYPES.RECTANGLE, CONST.DRAWING_TYPES.ELLIPSE,
-                    CONST.DRAWING_TYPES.POLYGON],
+  SUPPORTED_TYPES: [foundry.data.ShapeData.TYPES.RECTANGLE, foundry.data.ShapeData.TYPES.ELLIPSE,
+    foundry.data.ShapeData.TYPES.POLYGON],
 };
 
 class MltRequestBatch {
@@ -192,9 +192,9 @@ class MultilevelTokens {
   }
 
   _isAuthorisedRegion(drawing) {
-    return (drawing.shape.type === CONST.DRAWING_TYPES.RECTANGLE ||
-            drawing.shape.type === CONST.DRAWING_TYPES.ELLIPSE ||
-            drawing.shape.type === CONST.DRAWING_TYPES.POLYGON) &&
+    return (drawing.shape.type === foundry.data.ShapeData.TYPES.RECTANGLE ||
+            drawing.shape.type === foundry.data.ShapeData.TYPES.ELLIPSE ||
+            drawing.shape.type === foundry.data.ShapeData.TYPES.POLYGON) &&
         this._isUserGamemaster(drawing.author);
   }
 
@@ -306,7 +306,7 @@ class MultilevelTokens {
   }
 
   _getDrawingBounds(drawing) {
-    if (drawing.shape.type === CONST.DRAWING_TYPES.POLYGON) {
+    if (drawing.shape.type === foundry.data.ShapeData.TYPES.POLYGON) {
       let xMin = Number.MAX_VALUE;
       let xMax = Number.MIN_VALUE;
       let yMin = Number.MAX_VALUE;
@@ -379,10 +379,10 @@ class MultilevelTokens {
     if (!inBox) {
       return false;
     }
-    if (shape.type === CONST.DRAWING_TYPES.RECTANGLE) {
+    if (shape.type === foundry.data.ShapeData.TYPES.RECTANGLE) {
       return true;
     }
-    if (shape.type === CONST.DRAWING_TYPES.ELLIPSE) {
+    if (shape.type === foundry.data.ShapeData.TYPES.ELLIPSE) {
       if (!shape.width || !shape.height) {
         return false;
       }
@@ -391,7 +391,7 @@ class MultilevelTokens {
       return 4 * (dx * dx) / (shape.width * shape.width) +
           4 * (dy * dy) / (shape.height * shape.height) <= 1;
     }
-    if (shape.type === CONST.DRAWING_TYPES.POLYGON) {
+    if (shape.type === foundry.data.ShapeData.TYPES.POLYGON) {
       const points = this._getDrawingPoints(region);
       const cx = point.x - region.x;
       const cy = point.y - region.y;
@@ -447,7 +447,7 @@ class MultilevelTokens {
   }
 
   _duplicateTokenData(token) {
-    const data = duplicate(token);
+    const data = foundry.utils.duplicate(token);
     if (token.actor && !token.actorLink && !game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK) && token.actor.effects) {
       data.actorData = {"effects": []};
       for (var i = 0; i < token.actor.effects.contents.length; ++i) {
@@ -481,7 +481,7 @@ class MultilevelTokens {
     const opacity = this._getRegionFlag(targetRegion, "opacity") === 0. ? 0. :
         this._getRegionFlag(targetRegion, "opacity") || 1.;
 
-    const data = duplicate(token);
+    const data = foundry.utils.duplicate(token);
     delete data._id;
     if (!game.settings.get(MLT.SCOPE, MLT.SETTING_CLONE_ACTOR_LINK)) {
       data.actorId = "";
@@ -775,8 +775,11 @@ class MultilevelTokens {
 
   _execute(requestBatch) {
     // isUndo: true prevents these commands from being undoable themselves.
-    const options = {isUndo: true};
-    options[MLT.REPLICATED_UPDATE] = true;
+    // options object gets modified by promise chain, and thus must be recreated each time.
+    const baseOptions = {
+      isUndo: true,
+      [MLT.REPLICATED_UPDATE]: true
+    };
 
     let promise = Promise.resolve(null);
     for (const [sceneId, data] of Object.entries(requestBatch._scenes)) {
@@ -785,46 +788,46 @@ class MultilevelTokens {
         continue;
       }
       if (data.delete.length) {
-        promise = promise.then(() => scene.deleteEmbeddedDocuments(Token.embeddedName, data.delete, options));
+        promise = promise.then(() => scene.deleteEmbeddedDocuments(Token.embeddedName, data.delete, foundry.utils.duplicate(baseOptions)));
       }
       if (data.updateAnimateDiff.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Token.embeddedName, data.updateAnimateDiff,
-                                                                   Object.assign({diff: true}, options)));
+                                                                   Object.assign({diff: true}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateAnimated.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Token.embeddedName, data.updateAnimated,
-                                                                   Object.assign({diff: false}, options)));
+                                                                   Object.assign({diff: false}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateInstant.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Token.embeddedName, data.updateInstant,
-                                                                   Object.assign({diff: false, animation: {duration: 1. / (1024 * 1024)}}, options)));
+                                                                   Object.assign({diff: false, animation: {duration: 1. / (1024 * 1024)}}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateTile.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Tile.embeddedName, data.updateTile,
-                                                                   Object.assign({diff: false}, options)));
+                                                                   Object.assign({diff: false}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateWall.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Wall.embeddedName, data.updateWall,
-                                                                   Object.assign({diff: false}, options)));
+                                                                   Object.assign({diff: false}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateDrawing.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Drawing.embeddedName, data.updateDrawing,
-                                                                   Object.assign({diff: false}, options)));
+                                                                   Object.assign({diff: false}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateMapNote.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(Note.embeddedName, data.updateMapNote,
-                                                                   Object.assign({diff: false}, options)));
+                                                                   Object.assign({diff: false}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateLight.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(AmbientLight.embeddedName, data.updateLight,
-                                                                   Object.assign({diff: false}, options)));
+                                                                   Object.assign({diff: false}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.updateSound.length) {
         promise = promise.then(() => scene.updateEmbeddedDocuments(AmbientSound.embeddedName, data.updateSound,
-                                                                   Object.assign({diff: false}, options)));
+                                                                   Object.assign({diff: false}, foundry.utils.duplicate(baseOptions))));
       }
       if (data.create.length) {
-        promise = promise.then(() => scene.createEmbeddedDocuments(Token.embeddedName, data.create, options));
+        promise = promise.then(() => scene.createEmbeddedDocuments(Token.embeddedName, data.create, foundry.utils.duplicate(baseOptions)));
       }
     }
     for (const f of requestBatch._extraActions) {
@@ -1014,7 +1017,7 @@ class MultilevelTokens {
         }
       }
       const animate = this._hasRegionFlag(inRegion, "animate") || this._hasRegionFlag(outRegion, "animate");
-      destinations.push([duplicate(token), outScene, animate, position]);
+      destinations.push([foundry.utils.duplicate(token), outScene, animate, position]);
     }
     this._queueAsync(requestBatch => {
       for (const [token, outScene, animate, position] of destinations) {
@@ -1411,7 +1414,7 @@ class MultilevelTokens {
     }
 
     if (!manualText && (this._flagsToLabel(oldFlags) === data.text || !data.text)) {
-      const mergedFlags = Object.assign(duplicate(oldFlags), update.flags[MLT.SCOPE]);
+      const mergedFlags = Object.assign(foundry.utils.duplicate(oldFlags), update.flags[MLT.SCOPE]);
       update.text = this._flagsToLabel(mergedFlags);
     }
   }
@@ -1467,11 +1470,11 @@ class MultilevelTokens {
 
   _onCreateDrawing(drawing, options, userId) {
     if (this._hasRegionFlag(drawing, "source")) {
-      const d = duplicate(drawing);
+      const d = foundry.utils.duplicate(drawing);
       this._queueAsync(requestBatch => this._replicateAllFromSourceRegion(requestBatch, drawing.parent, d));
     }
     if (this._hasRegionFlag(drawing, "target")) {
-      const d = duplicate(drawing);
+      const d = foundry.utils.duplicate(drawing);
       this._queueAsync(requestBatch => this._replicateAllToTargetRegion(requestBatch, drawing.parent, d));
     }
   }
@@ -1488,7 +1491,7 @@ class MultilevelTokens {
     if (update.flags && update.flags[MLT.SCOPE]) {
       this._onCreateDrawing(drawing, options, userId);
     } else if (this._hasRegionFlag(drawing, "source") || this._hasRegionFlag(drawing, "target")) {
-      const d = duplicate(drawing);
+      const d = foundry.utils.duplicate(drawing);
       this._queueAsync(requestBatch => {
         if (this._hasRegionFlag(d, "source")) {
           this._updateAllReplicatedTokensForSourceRegion(requestBatch, drawing.parent, d);
@@ -1502,7 +1505,7 @@ class MultilevelTokens {
 
   _onDeleteDrawing(drawing, options, userId) {
     if (this._hasRegionFlag(drawing, ["source", "target"])) {
-      const d = duplicate(drawing);
+      const d = foundry.utils.duplicate(drawing);
       this._queueAsync(requestBatch => this._removeReplicationsForRegion(requestBatch, drawing.parent, d));
     }
   }
@@ -1536,7 +1539,7 @@ class MultilevelTokens {
     const sourceScene = this._getSourceSceneForReplicatedToken(token.parent, token);
     const sourceToken = this._getSourceTokenForReplicatedToken(token.parent, token);
     if (sourceScene && sourceToken) {
-      const newUpdate = duplicate(update);
+      const newUpdate = foundry.utils.duplicate(update);
       newUpdate._id = sourceToken._id;
       sourceScene.updateEmbeddedDocuments(Token.embeddedName, [newUpdate], options);
     }
@@ -1551,7 +1554,7 @@ class MultilevelTokens {
           // Make sure clones with linked actors also update their effects.
           // Should be able to do this without a timeout somewhere in the proper place, but data isn't
           // actually propagated yet here and can't figure out but hack for now.
-          setTimeout(() => t.object.drawEffects(), 1000);
+          setTimeout(() => t.object?.drawEffects(), 1000);
         }
       });
     }
@@ -1568,14 +1571,12 @@ class MultilevelTokens {
       if (MLT.REPLICATED_UPDATE in options) {
         this._setLastTeleport(token.parent, token);
       } else {
-        const canvasToken = canvas.tokens.placeables.find(t => t.id === token._id);
-        if (canvasToken && canvasToken._animation) {
-          canvasToken._animation.then(_ => {
-            this._doTeleport(token.parent, token) || this._doLevelTeleport(token.parent, token);
-          });
-        } else {
+        const animationName = options.animation?.name || token.object?.animationName;
+        const animationPromise = token.object?.animationContexts.get(animationName)?.promise;
+
+        (animationPromise || Promise.resolve()).then(() => {
           this._doTeleport(token.parent, token) || this._doLevelTeleport(token.parent, token);
-        }
+        })
       }
     }
   }
