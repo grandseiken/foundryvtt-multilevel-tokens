@@ -145,6 +145,8 @@ drawing.update({flags: {"multilevel-tokens": {disabled: !drawing.data.flags["mul
 
 # Version history
 
+* **1.7.0**:
+  * Compatibility with Foundry version 12.
 * **1.6.0**:
   * Compatibility with Foundry version 10.
   * Slightly reorganised the UI.
