@@ -1,5 +1,5 @@
 {
-  "name": "multilevel-tokens",
+  "id": "multilevel-tokens",
   "title": "Multilevel Tokens",
   "description": "<p>Adds several helpful token automation features, particularly (but not only) suited to maps with multiple levels.</p><p>Teleport tokens to another location when they move into a particular region (e.g. from the bottom of a staircase to the top). Clone tokens from one region to another, syncing movement and other property updates (e.g. allowing players to \"see\" what is happening on floors below). Trigger macros when a token enters or leaves a particular region.</p><p>See page at URL below for full usage instructions.</p>",
   "authors": [
@@ -7,12 +7,10 @@
       "name": "grandseiken"
     }
   ],
-  "version": "1.6.0",
-  "minimumCoreVersion": "10",
-  "compatibleCoreVersion": "10",
+  "version": "1.7.0",
   "compatibility": {
-    "minimum": 10,
-    "verified": 10
+    "minimum": 12,
+    "verified": 12
   },
   "scripts": ["multilevel.js"],
   "socket": true,
@@ -50,5 +48,5 @@
   ],
   "url": "https://github.com/grandseiken/foundryvtt-multilevel-tokens",
   "manifest": "https://raw.githubusercontent.com/grandseiken/foundryvtt-multilevel-tokens/master/module.json",
-  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v1.6.0.zip"
+  "download": "https://github.com/grandseiken/foundryvtt-multilevel-tokens/archive/v1.7.0.zip"
 }
