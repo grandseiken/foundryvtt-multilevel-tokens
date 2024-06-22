@@ -1,3 +1,5 @@
+*This is the original repository for Multilevel Tokens, but it's no longer maintained. It's now being developed by Bentheos [here](https://github.com/BeneosBattlemaps/Beneos-Multilevel-Tokens).*
+
 # Multilevel Tokens module for Foundry VTT
 
 This module for FoundryVTT adds several helpful token automation features, particularly (but not only) suited to maps with multiple levels.
